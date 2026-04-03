@@ -1,221 +1,216 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const CACHE_KEY = "top-picks-cache-v1";
 
-const els = {
-  todayDate: document.getElementById("todayDate"),
-  sourceStatus: document.getElementById("sourceStatus"),
-  refreshBtn: document.getElementById("refreshBtn"),
-  retryBtn: document.getElementById("retryBtn"),
-  installBtn: document.getElementById("installBtn"),
-  statusBanner: document.getElementById("statusBanner"),
-  cardsWrap: document.getElementById("cardsWrap"),
-  cards: document.getElementById("cards"),
-  emptyState: document.getElementById("emptyState"),
-  summaryCount: document.getElementById("summaryCount"),
-  summaryBestOdds: document.getElementById("summaryBestOdds"),
-  summaryHighConfidence: document.getElementById("summaryHighConfidence"),
-  template: document.getElementById("pickCardTemplate")
-};
+const app = document.getElementById("app");
 
-let deferredPrompt = null;
-
-function formatDate(dateString) {
-  if (!dateString) return "Fecha no disponible";
-  const date = new Date(`${dateString}T12:00:00`);
-  return new Intl.DateTimeFormat("es-ES", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric"
-  }).format(date);
+function badgeClass(confidence) {
+  const c = (confidence || "").toLowerCase();
+  if (c === "verde") return "badge badge-green";
+  if (c === "amarillo") return "badge badge-yellow";
+  return "badge badge-red";
 }
 
-function showBanner(message, type = "info") {
-  els.statusBanner.textContent = message;
-  els.statusBanner.className = `status-banner status-banner--${type}`;
+function typeLabel(type) {
+  const t = (type || "").toLowerCase();
+  if (t === "solido") return "Sólido";
+  if (t === "medio") return "Medio";
+  if (t === "agresivo") return "Agresivo";
+  return "Pick";
 }
 
-function hideBanner() {
-  els.statusBanner.className = "status-banner hidden";
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-function setLoadingState(isLoading) {
-  els.refreshBtn.disabled = isLoading;
-  els.refreshBtn.textContent = isLoading ? "Actualizando…" : "Actualizar picks";
-  els.sourceStatus.textContent = isLoading ? "Consultando backend…" : els.sourceStatus.textContent;
+function loadingView() {
+  app.innerHTML = `
+    <section class="hero">
+      <h1>Top 3 Picks del Día</h1>
+      <p>Analizando cuotas reales, valor y próximos partidos de la semana…</p>
+    </section>
+
+    <section class="status-card">
+      <div class="spinner"></div>
+      <div>
+        <h3>Cargando picks</h3>
+        <p>Consultando backend y buscando oportunidades con valor real.</p>
+      </div>
+    </section>
+  `;
 }
 
-function normalizePick(raw) {
-  const competition = raw.competition || raw.league || raw.tournament || "Competición";
-  const match = raw.match || raw.fixture || `${raw.home_team || raw.home || "Local"} vs ${raw.away_team || raw.away || "Visitante"}`;
-  const startsAt = raw.starts_at || raw.match_time || raw.time || "Hora pendiente";
-  const pick = raw.pick || raw.market || raw.prediction || raw.tip || "Sin pick";
-  const confidence = (raw.confidence || raw.color || "gris").toString().toLowerCase();
-  const explanation = raw.tipster_explanation || raw.explanation || raw.reason || "Sin explicación disponible.";
+function errorView(message) {
+  app.innerHTML = `
+    <section class="hero">
+      <h1>Top 3 Picks del Día</h1>
+      <p>No se pudieron cargar los pronósticos.</p>
+    </section>
 
-  const oddsNumber = Number(raw.odds ?? raw.cuota ?? raw.odd);
-  const modelProbRaw = raw.model_probability ?? raw.probability ?? raw.prob_model;
-  const impliedProbRaw = raw.implied_probability ?? raw.probability_implied ?? raw.prob_impl;
-  const valueRaw = raw.value_edge ?? raw.value ?? raw.edge;
-
-  const modelProbability = Number(modelProbRaw);
-  const impliedProbability = Number(impliedProbRaw);
-  const valueEdge = Number(valueRaw);
-
-  return {
-    competition,
-    match,
-    startsAt,
-    pick,
-    confidence,
-    explanation,
-    odds: Number.isFinite(oddsNumber) ? oddsNumber : null,
-    modelProbability: Number.isFinite(modelProbability)
-      ? (modelProbability <= 1 ? modelProbability * 100 : modelProbability)
-      : null,
-    impliedProbability: Number.isFinite(impliedProbability)
-      ? (impliedProbability <= 1 ? impliedProbability * 100 : impliedProbability)
-      : null,
-    valueEdge: Number.isFinite(valueEdge)
-      ? (Math.abs(valueEdge) <= 1 ? valueEdge * 100 : valueEdge)
-      : null
-  };
+    <section class="status-card error">
+      <div>
+        <h3>Error cargando datos</h3>
+        <p>${escapeHtml(message)}</p>
+        <button class="refresh-btn" onclick="loadPicks()">Reintentar</button>
+      </div>
+    </section>
+  `;
 }
 
-function formatPercent(value) {
-  if (value == null) return "—";
-  return `${value.toFixed(1)}%`;
+function emptyView(meta) {
+  app.innerHTML = `
+    <section class="hero">
+      <h1>Top 3 Picks del Día</h1>
+      <p>No hay picks válidos ahora mismo. Puede que no haya suficientes partidos con valor.</p>
+    </section>
+
+    <section class="status-card">
+      <div>
+        <h3>Sin picks disponibles</h3>
+        <p><strong>Fecha:</strong> ${escapeHtml(meta.date || "-")}</p>
+        <p><strong>Generado a las:</strong> ${escapeHtml(meta.generated_at || "-")}</p>
+        <p><strong>Fuente:</strong> ${escapeHtml(meta.source || "-")}</p>
+        <button class="refresh-btn" onclick="loadPicks()">Actualizar</button>
+      </div>
+    </section>
+  `;
 }
 
-function formatOdds(value) {
-  if (value == null) return "—";
-  return value.toFixed(2);
+function pickCard(pick) {
+  const confidence = pick.confidence || "rojo";
+  const type = pick.type || "pick";
+
+  return `
+    <article class="pick-card">
+      <div class="pick-top">
+        <div>
+          <div class="competition">${escapeHtml(pick.competition || "")}</div>
+          <h2 class="match">${escapeHtml(pick.match || "")}</h2>
+        </div>
+        <div class="kickoff">
+          <span>🕒</span>
+          <strong>${escapeHtml(pick.starts_at || "--:--")}</strong>
+        </div>
+      </div>
+
+      <div class="pick-tags">
+        <span class="type-pill type-${escapeHtml(type)}">${typeLabel(type)}</span>
+        <span class="${badgeClass(confidence)}">${escapeHtml(confidence.toUpperCase())}</span>
+      </div>
+
+      <div class="pick-main">
+        <div class="pick-line">
+          <span class="label">Pronóstico</span>
+          <span class="value strong">${escapeHtml(pick.pick || "-")}</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="label">Cuota</span>
+            <span class="value">${escapeHtml(pick.odds ?? "-")}</span>
+          </div>
+
+          <div class="stat-box">
+            <span class="label">Prob. modelo</span>
+            <span class="value">${escapeHtml(pick.model_probability ?? "-")}%</span>
+          </div>
+
+          <div class="stat-box">
+            <span class="label">Prob. implícita</span>
+            <span class="value">${escapeHtml(pick.implied_probability ?? "-")}%</span>
+          </div>
+
+          <div class="stat-box">
+            <span class="label">Value</span>
+            <span class="value">+${escapeHtml(pick.value_edge ?? "-")}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tipster-box">
+        <h3>Análisis tipster</h3>
+        <p>${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}</p>
+      </div>
+
+      <div class="pick-footer">
+        <span><strong>Casa:</strong> ${escapeHtml(pick.bookmaker || "N/D")}</span>
+        <span><strong>Fixture ID:</strong> ${escapeHtml(pick.fixture_id ?? "-")}</span>
+      </div>
+    </article>
+  `;
 }
 
-function formatValue(value) {
-  if (value == null) return "—";
-  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
-}
-
-function renderSummary(picks) {
-  const bestOdds = picks.reduce((max, pick) => pick.odds && pick.odds > max ? pick.odds : max, 0);
-  const highConfidence = picks.filter(p => p.confidence === "verde").length;
-  els.summaryCount.textContent = String(picks.length);
-  els.summaryBestOdds.textContent = bestOdds ? formatOdds(bestOdds) : "—";
-  els.summaryHighConfidence.textContent = String(highConfidence);
-}
-
-function renderPicks(data) {
-  const picks = (data.picks || []).map(normalizePick);
-  els.cards.innerHTML = "";
+function renderData(data) {
+  const picks = Array.isArray(data.picks) ? data.picks : [];
 
   if (!picks.length) {
-    els.cardsWrap.classList.add("hidden");
-    els.emptyState.classList.remove("hidden");
-    renderSummary([]);
+    emptyView(data);
     return;
   }
 
-  picks.forEach((pick) => {
-    const node = els.template.content.cloneNode(true);
+  app.innerHTML = `
+    <section class="hero">
+      <div>
+        <h1>Top 3 Picks del Día</h1>
+        <p>Ganador local o visitante con cuotas reales, value y análisis tipster.</p>
+      </div>
+      <button class="refresh-btn" onclick="loadPicks()">Actualizar</button>
+    </section>
 
-    node.querySelector(".pick-card__competition").textContent = pick.competition;
-    node.querySelector(".pick-card__match").textContent = pick.match;
-    node.querySelector(".badge--time").textContent = pick.startsAt;
+    <section class="meta-strip">
+      <div><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</div>
+      <div><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</div>
+      <div><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</div>
+    </section>
 
-    const confidenceBadge = node.querySelector(".badge--confidence");
-    confidenceBadge.textContent = (pick.confidence || "gris").toUpperCase();
-    confidenceBadge.classList.add(pick.confidence || "gris");
-
-    node.querySelector(".pick-card__pick").textContent = pick.pick;
-    node.querySelector(".pick-card__odds").textContent = formatOdds(pick.odds);
-    node.querySelector(".pick-card__modelProb").textContent = formatPercent(pick.modelProbability);
-    node.querySelector(".pick-card__value").textContent = formatValue(pick.valueEdge);
-    node.querySelector(".pick-card__explanation").textContent = pick.explanation;
-
-    els.cards.appendChild(node);
-  });
-
-  renderSummary(picks);
-  els.cardsWrap.classList.remove("hidden");
-  els.emptyState.classList.add("hidden");
+    <section class="cards-grid">
+      ${picks.map(pickCard).join("")}
+    </section>
+  `;
 }
 
-function saveCache(data) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-  } catch {}
-}
-
-function loadCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchPicks(force = false) {
-  setLoadingState(true);
-  hideBanner();
-
-  const cache = loadCache();
-  if (!force && cache?.date) {
-    els.todayDate.textContent = formatDate(cache.date);
-    renderPicks(cache);
-    els.sourceStatus.textContent = "Mostrando caché local";
-  }
+async function loadPicks() {
+  loadingView();
 
   try {
-    const response = await fetch(BACKEND_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error(`Error ${response.status}`);
+    const response = await fetch(BACKEND_URL, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
     const data = await response.json();
 
-    els.todayDate.textContent = formatDate(data.date);
-    els.sourceStatus.textContent = "Conectado a Render";
-    renderPicks(data);
-    saveCache(data);
-    showBanner("Picks actualizados correctamente.", "success");
+    try {
+      const cacheKey = `top-picks-${data.date || "today"}`;
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+    } catch (_) {}
+
+    renderData(data);
   } catch (error) {
-    const fallback = loadCache();
-    if (fallback?.picks?.length) {
-      els.todayDate.textContent = formatDate(fallback.date);
-      els.sourceStatus.textContent = "Usando último cache disponible";
-      renderPicks(fallback);
-      showBanner("No se pudo actualizar ahora mismo. Se muestra la última versión guardada.", "info");
-    } else {
-      els.cardsWrap.classList.add("hidden");
-      els.emptyState.classList.remove("hidden");
-      els.sourceStatus.textContent = "Backend no disponible";
-      showBanner("No se pudo cargar el backend. Puede que Render esté despertando o que no haya picks aún.", "error");
-    }
-  } finally {
-    setLoadingState(false);
+    console.error("Error cargando picks:", error);
+
+    // fallback a caché local si existe
+    try {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith("top-picks-")).sort().reverse();
+      if (keys.length > 0) {
+        const cached = JSON.parse(localStorage.getItem(keys[0]));
+        renderData(cached);
+        return;
+      }
+    } catch (_) {}
+
+    errorView(error.message || "Error desconocido");
   }
 }
 
-els.refreshBtn.addEventListener("click", () => fetchPicks(true));
-els.retryBtn.addEventListener("click", () => fetchPicks(true));
-
-window.addEventListener("beforeinstallprompt", (event) => {
-  event.preventDefault();
-  deferredPrompt = event;
-  els.installBtn.hidden = false;
-});
-
-els.installBtn.addEventListener("click", async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  els.installBtn.hidden = true;
-});
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  });
-}
-
-fetchPicks(false);
+window.loadPicks = loadPicks;
+document.addEventListener("DOMContentLoaded", loadPicks);
