@@ -1,0 +1,10 @@
+{
+  "name": "Top Picks del Día",
+  "short_name": "Top Picks",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#081120",
+  "theme_color": "#0f172a",
+  "description": "Web responsive para ver picks diarios con horario, value y análisis tipster.",
+  "icons": []
+}

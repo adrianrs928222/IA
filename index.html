@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Top Picks del Día</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div class="hero__content">
+        <p class="eyebrow">PRONÓSTICOS DIARIOS</p>
+        <h1>Top Picks del Día</h1>
+        <p class="hero__subtitle">
+          Ganador del partido, cuotas entre 1.60 y 6.00, análisis tipo tipster y vista optimizada para móvil.
+        </p>
+        <div class="hero__meta">
+          <span class="meta-chip" id="todayDate">—</span>
+          <span class="meta-chip" id="sourceStatus">Conectando…</span>
+        </div>
+      </div>
+      <div class="hero__actions">
+        <button id="refreshBtn" class="btn btn--primary">Actualizar picks</button>
+        <button id="installBtn" class="btn btn--ghost" hidden>Instalar web</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="summary-grid" id="summaryGrid">
+        <article class="summary-card">
+          <span class="summary-card__label">Picks del día</span>
+          <strong id="summaryCount">0</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-card__label">Mejor cuota</span>
+          <strong id="summaryBestOdds">—</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-card__label">Confianza alta</span>
+          <strong id="summaryHighConfidence">0</strong>
+        </article>
+      </section>
+
+      <section id="statusBanner" class="status-banner hidden"></section>
+
+      <section id="cardsWrap" class="cards-wrap hidden">
+        <div class="cards-header">
+          <h2>Picks seleccionados</h2>
+          <span class="cards-header__hint">Se mantiene el pick del día mientras la fecha no cambie.</span>
+        </div>
+        <div id="cards" class="cards"></div>
+      </section>
+
+      <section id="emptyState" class="empty-state hidden">
+        <div class="empty-state__box">
+          <h3>Hoy no hay picks disponibles</h3>
+          <p>
+            Puede que el backend aún no haya generado picks, que no haya partidos válidos o que Render esté despertando.
+          </p>
+          <button id="retryBtn" class="btn btn--primary">Reintentar</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="pickCardTemplate">
+    <article class="pick-card">
+      <div class="pick-card__top">
+        <div>
+          <p class="pick-card__competition"></p>
+          <h3 class="pick-card__match"></h3>
+        </div>
+        <div class="pick-card__badges">
+          <span class="badge badge--time"></span>
+          <span class="badge badge--confidence"></span>
+        </div>
+      </div>
+
+      <div class="pick-card__grid">
+        <div class="stat-box">
+          <span class="stat-box__label">Pronóstico</span>
+          <strong class="pick-card__pick"></strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-box__label">Cuota</span>
+          <strong class="pick-card__odds"></strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-box__label">Probabilidad modelo</span>
+          <strong class="pick-card__modelProb"></strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-box__label">Value</span>
+          <strong class="pick-card__value"></strong>
+        </div>
+      </div>
+
+      <div class="pick-card__explanation-wrap">
+        <p class="pick-card__explanation-title">Análisis tipster</p>
+        <p class="pick-card__explanation"></p>
+      </div>
+    </article>
+  </template>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
