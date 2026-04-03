@@ -1,21 +1,7 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v1";
 
 const app = document.getElementById("app");
-
-function badgeClass(confidence) {
-  const c = (confidence || "").toLowerCase();
-  if (c === "verde") return "badge badge-green";
-  if (c === "amarillo") return "badge badge-yellow";
-  return "badge badge-red";
-}
-
-function typeLabel(type) {
-  const t = (type || "").toLowerCase();
-  if (t === "solido") return "Sólido";
-  if (t === "medio") return "Medio";
-  if (t === "agresivo") return "Agresivo";
-  return "Pick";
-}
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -26,18 +12,60 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
+function confidenceBadge(confidence) {
+  const c = (confidence || "").toLowerCase();
+
+  if (c === "verde") {
+    return `<span class="badge badge-green">VERDE</span>`;
+  }
+  if (c === "amarillo") {
+    return `<span class="badge badge-yellow">AMARILLO</span>`;
+  }
+  return `<span class="badge badge-red">ROJO</span>`;
+}
+
+function pickTypeBadge(type) {
+  const t = (type || "").toLowerCase();
+
+  if (t === "solido") {
+    return `<span class="type-pill type-solido">Sólido</span>`;
+  }
+  if (t === "medio") {
+    return `<span class="type-pill type-medio">Medio</span>`;
+  }
+  if (t === "agresivo") {
+    return `<span class="type-pill type-agresivo">Agresivo</span>`;
+  }
+  return `<span class="type-pill">Pick</span>`;
+}
+
+function getBestOdds(picks) {
+  if (!Array.isArray(picks) || picks.length === 0) return "-";
+  const max = Math.max(...picks.map(p => Number(p.odds || 0)));
+  return max > 0 ? max.toFixed(2) : "-";
+}
+
+function getHighConfidenceCount(picks) {
+  if (!Array.isArray(picks)) return 0;
+  return picks.filter(p => String(p.confidence || "").toLowerCase() === "verde").length;
+}
+
 function loadingView() {
   app.innerHTML = `
     <section class="hero">
-      <h1>Top 3 Picks del Día</h1>
-      <p>Analizando cuotas reales, valor y próximos partidos de la semana…</p>
+      <div>
+        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <h1>Top Pronósticos Diarios</h1>
+        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
+      </div>
+      <button class="refresh-btn" disabled>Cargando...</button>
     </section>
 
     <section class="status-card">
       <div class="spinner"></div>
       <div>
-        <h3>Cargando picks</h3>
-        <p>Consultando backend y buscando oportunidades con valor real.</p>
+        <h3>Consultando backend</h3>
+        <p>Buscando picks con valor en los próximos partidos disponibles.</p>
       </div>
     </section>
   `;
@@ -46,43 +74,62 @@ function loadingView() {
 function errorView(message) {
   app.innerHTML = `
     <section class="hero">
-      <h1>Top 3 Picks del Día</h1>
-      <p>No se pudieron cargar los pronósticos.</p>
+      <div>
+        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <h1>Top Pronósticos Diarios</h1>
+        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
+      </div>
+      <button class="refresh-btn" onclick="loadPicks()">Actualizar</button>
     </section>
 
     <section class="status-card error">
       <div>
         <h3>Error cargando datos</h3>
         <p>${escapeHtml(message)}</p>
-        <button class="refresh-btn" onclick="loadPicks()">Reintentar</button>
       </div>
     </section>
   `;
 }
 
-function emptyView(meta) {
+function emptyView(data) {
   app.innerHTML = `
     <section class="hero">
-      <h1>Top 3 Picks del Día</h1>
-      <p>No hay picks válidos ahora mismo. Puede que no haya suficientes partidos con valor.</p>
+      <div>
+        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <h1>Top Pronósticos Diarios</h1>
+        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
+      </div>
+      <button class="refresh-btn" onclick="loadPicks()">Actualizar picks</button>
+    </section>
+
+    <section class="summary-grid">
+      <div class="summary-card">
+        <span class="summary-label">Picks del día</span>
+        <strong class="summary-value">0</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Mejor cuota</span>
+        <strong class="summary-value">-</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Confianza alta</span>
+        <strong class="summary-value">0</strong>
+      </div>
     </section>
 
     <section class="status-card">
       <div>
         <h3>Sin picks disponibles</h3>
-        <p><strong>Fecha:</strong> ${escapeHtml(meta.date || "-")}</p>
-        <p><strong>Generado a las:</strong> ${escapeHtml(meta.generated_at || "-")}</p>
-        <p><strong>Fuente:</strong> ${escapeHtml(meta.source || "-")}</p>
-        <button class="refresh-btn" onclick="loadPicks()">Actualizar</button>
+        <p><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</p>
+        <p><strong>Generado a las:</strong> ${escapeHtml(data.generated_at || "-")}</p>
+        <p><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</p>
+        <p><strong>Actualización:</strong> cada 24 horas</p>
       </div>
     </section>
   `;
 }
 
-function pickCard(pick) {
-  const confidence = pick.confidence || "rojo";
-  const type = pick.type || "pick";
-
+function renderPickCard(pick) {
   return `
     <article class="pick-card">
       <div class="pick-top">
@@ -97,47 +144,45 @@ function pickCard(pick) {
       </div>
 
       <div class="pick-tags">
-        <span class="type-pill type-${escapeHtml(type)}">${typeLabel(type)}</span>
-        <span class="${badgeClass(confidence)}">${escapeHtml(confidence.toUpperCase())}</span>
+        ${pickTypeBadge(pick.type)}
+        ${confidenceBadge(pick.confidence)}
       </div>
 
-      <div class="pick-main">
-        <div class="pick-line">
-          <span class="label">Pronóstico</span>
-          <span class="value strong">${escapeHtml(pick.pick || "-")}</span>
+      <div class="pick-main-line">
+        <span class="label">Pronóstico</span>
+        <span class="value strong">${escapeHtml(pick.pick || "-")}</span>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="label">Cuota</span>
+          <span class="value">${escapeHtml(pick.odds ?? "-")}</span>
         </div>
 
-        <div class="stats-grid">
-          <div class="stat-box">
-            <span class="label">Cuota</span>
-            <span class="value">${escapeHtml(pick.odds ?? "-")}</span>
-          </div>
+        <div class="stat-box">
+          <span class="label">Prob. modelo</span>
+          <span class="value">${escapeHtml(pick.model_probability ?? "-")}%</span>
+        </div>
 
-          <div class="stat-box">
-            <span class="label">Prob. modelo</span>
-            <span class="value">${escapeHtml(pick.model_probability ?? "-")}%</span>
-          </div>
+        <div class="stat-box">
+          <span class="label">Prob. implícita</span>
+          <span class="value">${escapeHtml(pick.implied_probability ?? "-")}%</span>
+        </div>
 
-          <div class="stat-box">
-            <span class="label">Prob. implícita</span>
-            <span class="value">${escapeHtml(pick.implied_probability ?? "-")}%</span>
-          </div>
-
-          <div class="stat-box">
-            <span class="label">Value</span>
-            <span class="value">+${escapeHtml(pick.value_edge ?? "-")}%</span>
-          </div>
+        <div class="stat-box">
+          <span class="label">Value</span>
+          <span class="value">+${escapeHtml(pick.value_edge ?? "-")}%</span>
         </div>
       </div>
 
       <div class="tipster-box">
-        <h3>Análisis tipster</h3>
+        <h3>Análisis IA</h3>
         <p>${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}</p>
       </div>
 
       <div class="pick-footer">
-        <span><strong>Casa:</strong> ${escapeHtml(pick.bookmaker || "N/D")}</span>
-        <span><strong>Fixture ID:</strong> ${escapeHtml(pick.fixture_id ?? "-")}</span>
+        <span><strong>Bookmaker:</strong> ${escapeHtml(pick.bookmaker || "N/D")}</span>
+        <span><strong>Tipo:</strong> ${escapeHtml(pick.type || "-")}</span>
       </div>
     </article>
   `;
@@ -146,28 +191,51 @@ function pickCard(pick) {
 function renderData(data) {
   const picks = Array.isArray(data.picks) ? data.picks : [];
 
-  if (!picks.length) {
+  if (picks.length === 0) {
     emptyView(data);
     return;
   }
 
+  const highConfidence = getHighConfidenceCount(picks);
+  const bestOdds = getBestOdds(picks);
+
   app.innerHTML = `
     <section class="hero">
       <div>
-        <h1>Top 3 Picks del Día</h1>
-        <p>Ganador local o visitante con cuotas reales, value y análisis tipster.</p>
+        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <h1>Top Pronósticos Diarios</h1>
+        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
       </div>
-      <button class="refresh-btn" onclick="loadPicks()">Actualizar</button>
+      <button class="refresh-btn" onclick="loadPicks()">Actualizar picks</button>
     </section>
 
     <section class="meta-strip">
       <div><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</div>
       <div><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</div>
-      <div><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</div>
+      <div><strong>Actualiza:</strong> cada 24h</div>
+    </section>
+
+    <section class="summary-grid">
+      <div class="summary-card">
+        <span class="summary-label">Picks del día</span>
+        <strong class="summary-value">${escapeHtml(data.count ?? picks.length)}</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Mejor cuota</span>
+        <strong class="summary-value">${escapeHtml(bestOdds)}</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Confianza alta</span>
+        <strong class="summary-value">${escapeHtml(highConfidence)}</strong>
+      </div>
+    </section>
+
+    <section class="status-ok">
+      Picks actualizados correctamente.
     </section>
 
     <section class="cards-grid">
-      ${picks.map(pickCard).join("")}
+      ${picks.map(renderPickCard).join("")}
     </section>
   `;
 }
@@ -190,20 +258,18 @@ async function loadPicks() {
     const data = await response.json();
 
     try {
-      const cacheKey = `top-picks-${data.date || "today"}`;
-      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
     } catch (_) {}
 
     renderData(data);
   } catch (error) {
     console.error("Error cargando picks:", error);
 
-    // fallback a caché local si existe
     try {
-      const keys = Object.keys(localStorage).filter(k => k.startsWith("top-picks-")).sort().reverse();
-      if (keys.length > 0) {
-        const cached = JSON.parse(localStorage.getItem(keys[0]));
-        renderData(cached);
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        renderData(parsed);
         return;
       }
     } catch (_) {}
