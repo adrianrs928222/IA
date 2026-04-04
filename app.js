@@ -1,5 +1,5 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v2";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v3";
 
 const app = document.getElementById("app");
 
@@ -39,6 +39,28 @@ function pickTypeBadge(type) {
   return `<span class="type-pill">Pick</span>`;
 }
 
+function marketBadge(marketGroup, pickText) {
+  const market = String(marketGroup || "").toLowerCase();
+
+  if (market === "winner") {
+    return `<span class="type-pill type-medio">Ganador</span>`;
+  }
+  if (market === "over_2_5") {
+    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
+  }
+  if (market === "btts_yes") {
+    return `<span class="type-pill type-solido">Ambos marcan</span>`;
+  }
+
+  if (String(pickText || "").toLowerCase().includes("ambos marcan")) {
+    return `<span class="type-pill type-solido">Ambos marcan</span>`;
+  }
+  if (String(pickText || "").toLowerCase().includes("2.5")) {
+    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
+  }
+  return `<span class="type-pill type-medio">Mercado</span>`;
+}
+
 function getBestOdds(picks) {
   if (!Array.isArray(picks) || picks.length === 0) return "-";
   const max = Math.max(...picks.map(p => Number(p.odds || 0)));
@@ -69,7 +91,7 @@ function loadingView() {
       <div class="spinner"></div>
       <div>
         <h3>Consultando backend</h3>
-        <p>Buscando picks reales en las mejores competiciones y próximos partidos de la semana.</p>
+        <p>Buscando los mejores mercados entre ganador, más de 2.5 goles y ambos marcan.</p>
       </div>
     </section>
   `;
@@ -149,6 +171,7 @@ function renderPickCard(pick) {
 
       <div class="pick-tags">
         ${pickTypeBadge(pick.type)}
+        ${marketBadge(pick.market_group, pick.pick)}
         ${confidenceBadge(pick.confidence)}
       </div>
 
@@ -175,7 +198,7 @@ function renderPickCard(pick) {
 
         <div class="stat-box">
           <span class="label">Value</span>
-          <span class="value">+${escapeHtml(pick.value_edge ?? "-")}%</span>
+          <span class="value">${Number(pick.value_edge) >= 0 ? "+" : ""}${escapeHtml(pick.value_edge ?? "-")}%</span>
         </div>
       </div>
 
@@ -186,7 +209,7 @@ function renderPickCard(pick) {
 
       <div class="pick-footer">
         <span><strong>Bookmaker:</strong> ${escapeHtml(pick.bookmaker || "N/D")}</span>
-        <span><strong>Tipo:</strong> ${escapeHtml(pick.type || "-")}</span>
+        <span><strong>Mercado API:</strong> ${escapeHtml(pick.market_name || "-")}</span>
       </div>
     </article>
   `;
@@ -208,7 +231,7 @@ function renderData(data) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
+        <p>Pronósticos deportivos con IA. El sistema elige entre ganador, más de 2.5 goles y ambos marcan para encontrar valor real.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -235,7 +258,7 @@ function renderData(data) {
     </section>
 
     <section class="status-ok">
-      Picks actualizados correctamente. Próxima renovación automática en 24 horas.
+      Picks actualizados correctamente. El sistema analiza varios mercados y prioriza oportunidades con valor real.
     </section>
 
     <section class="cards-grid">
@@ -249,7 +272,7 @@ async function loadPicks(forceRefresh = false) {
 
   try {
     const url = forceRefresh
-      ? `${BACKEND_URL}?ts=${Date.now()}`
+      ? `${BACKEND_URL}?refresh=1&ts=${Date.now()}`
       : BACKEND_URL;
 
     const response = await fetch(url, {
