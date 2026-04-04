@@ -1,5 +1,5 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v1";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v2";
 
 const app = document.getElementById("app");
 
@@ -13,7 +13,7 @@ function escapeHtml(str) {
 }
 
 function confidenceBadge(confidence) {
-  const c = (confidence || "").toLowerCase();
+  const c = String(confidence || "").toLowerCase();
 
   if (c === "verde") {
     return `<span class="badge badge-green">VERDE</span>`;
@@ -25,7 +25,7 @@ function confidenceBadge(confidence) {
 }
 
 function pickTypeBadge(type) {
-  const t = (type || "").toLowerCase();
+  const t = String(type || "").toLowerCase();
 
   if (t === "solido") {
     return `<span class="type-pill type-solido">Sólido</span>`;
@@ -50,13 +50,17 @@ function getHighConfidenceCount(picks) {
   return picks.filter(p => String(p.confidence || "").toLowerCase() === "verde").length;
 }
 
+function formatCount(value) {
+  return Number.isFinite(Number(value)) ? String(value) : "0";
+}
+
 function loadingView() {
   app.innerHTML = `
     <section class="hero">
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
+        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
       </div>
       <button class="refresh-btn" disabled>Cargando...</button>
     </section>
@@ -65,7 +69,7 @@ function loadingView() {
       <div class="spinner"></div>
       <div>
         <h3>Consultando backend</h3>
-        <p>Buscando picks con valor en los próximos partidos disponibles.</p>
+        <p>Buscando picks reales en las mejores competiciones y próximos partidos de la semana.</p>
       </div>
     </section>
   `;
@@ -77,9 +81,9 @@ function errorView(message) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
+        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
       </div>
-      <button class="refresh-btn" onclick="loadPicks()">Actualizar</button>
+      <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
 
     <section class="status-card error">
@@ -97,9 +101,9 @@ function emptyView(data) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
+        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
       </div>
-      <button class="refresh-btn" onclick="loadPicks()">Actualizar picks</button>
+      <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
 
     <section class="summary-grid">
@@ -119,11 +123,11 @@ function emptyView(data) {
 
     <section class="status-card">
       <div>
-        <h3>Sin picks disponibles</h3>
+        <h3>No hay picks válidos ahora mismo</h3>
         <p><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</p>
         <p><strong>Generado a las:</strong> ${escapeHtml(data.generated_at || "-")}</p>
         <p><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</p>
-        <p><strong>Actualización:</strong> cada 24 horas</p>
+        <p><strong>Próxima renovación:</strong> ${escapeHtml(data.cached_until || "-")}</p>
       </div>
     </section>
   `;
@@ -204,21 +208,21 @@ function renderData(data) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA y análisis inteligente basados en cuotas reales.</p>
+        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
       </div>
-      <button class="refresh-btn" onclick="loadPicks()">Actualizar picks</button>
+      <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
 
     <section class="meta-strip">
       <div><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</div>
       <div><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</div>
-      <div><strong>Actualiza:</strong> cada 24h</div>
+      <div><strong>Renueva:</strong> cada 24h</div>
     </section>
 
     <section class="summary-grid">
       <div class="summary-card">
         <span class="summary-label">Picks del día</span>
-        <strong class="summary-value">${escapeHtml(data.count ?? picks.length)}</strong>
+        <strong class="summary-value">${formatCount(data.count ?? picks.length)}</strong>
       </div>
       <div class="summary-card">
         <span class="summary-label">Mejor cuota</span>
@@ -231,7 +235,7 @@ function renderData(data) {
     </section>
 
     <section class="status-ok">
-      Picks actualizados correctamente.
+      Picks actualizados correctamente. Próxima renovación automática en 24 horas.
     </section>
 
     <section class="cards-grid">
@@ -240,15 +244,20 @@ function renderData(data) {
   `;
 }
 
-async function loadPicks() {
+async function loadPicks(forceRefresh = false) {
   loadingView();
 
   try {
-    const response = await fetch(BACKEND_URL, {
+    const url = forceRefresh
+      ? `${BACKEND_URL}?ts=${Date.now()}`
+      : BACKEND_URL;
+
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Accept": "application/json"
-      }
+      },
+      cache: "no-store"
     });
 
     if (!response.ok) {
@@ -279,4 +288,4 @@ async function loadPicks() {
 }
 
 window.loadPicks = loadPicks;
-document.addEventListener("DOMContentLoaded", loadPicks);
+document.addEventListener("DOMContentLoaded", () => loadPicks(false));
