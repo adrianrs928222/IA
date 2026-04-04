@@ -3,13 +3,11 @@
   --bg-2: #0b1627;
   --panel: rgba(17, 24, 39, 0.78);
   --panel-strong: rgba(20, 29, 48, 0.95);
-  --panel-soft: rgba(255, 255, 255, 0.04);
   --text: #f4f7fb;
   --muted: #9fb0c7;
   --line: rgba(255, 255, 255, 0.08);
 
   --blue: #2f8cff;
-  --blue-2: #5aa7ff;
   --cyan: #39d0ff;
   --green: #22c55e;
   --yellow: #f5c542;
@@ -22,7 +20,6 @@
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
-  --radius-sm: 12px;
 
   --max-width: 1280px;
 }
@@ -42,10 +39,6 @@ body {
     radial-gradient(circle at top left, rgba(47, 140, 255, 0.22), transparent 30%),
     radial-gradient(circle at top right, rgba(57, 208, 255, 0.16), transparent 28%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
-}
-
-body {
-  position: relative;
 }
 
 body::before {
@@ -115,7 +108,6 @@ body::before {
   padding: 16px 24px;
   font-size: 0.98rem;
   font-weight: 800;
-  letter-spacing: 0.01em;
   color: #fff;
   cursor: pointer;
   background: linear-gradient(135deg, var(--blue), var(--cyan));
@@ -288,7 +280,7 @@ body::before {
 }
 
 .competition {
-  color: var(--blue-2);
+  color: var(--cyan);
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -336,7 +328,6 @@ body::before {
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 800;
-  letter-spacing: 0.02em;
   border: 1px solid transparent;
 }
 
