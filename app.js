@@ -1,6 +1,6 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
 const HISTORY_URL = "https://funcional-s4vd.onrender.com/history-picks";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v8";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v9";
 
 const app = document.getElementById("app");
 
@@ -15,15 +15,25 @@ function escapeHtml(str) {
 
 function confidenceBadge(confidence) {
   const c = String(confidence || "").toLowerCase();
-  if (c === "verde") return `<span class="badge badge-green">VERDE</span>`;
-  if (c === "amarillo") return `<span class="badge badge-yellow">AMARILLO</span>`;
+
+  if (c === "verde") {
+    return `<span class="badge badge-green">VERDE</span>`;
+  }
+  if (c === "amarillo") {
+    return `<span class="badge badge-yellow">AMARILLO</span>`;
+  }
   return `<span class="badge badge-red">ROJO</span>`;
 }
 
 function pickTypeBadge(type) {
   const t = String(type || "").toLowerCase();
-  if (t === "medio") return `<span class="type-pill type-medio">Media</span>`;
-  if (t === "agresivo") return `<span class="type-pill type-agresivo">Alta</span>`;
+
+  if (t === "medio") {
+    return `<span class="type-pill type-medio">Media</span>`;
+  }
+  if (t === "agresivo") {
+    return `<span class="type-pill type-agresivo">Alta</span>`;
+  }
   return `<span class="type-pill">Pick</span>`;
 }
 
@@ -31,22 +41,43 @@ function marketBadge(marketGroup, pickText) {
   const market = String(marketGroup || "").toLowerCase();
   const pick = String(pickText || "").toLowerCase();
 
-  if (market === "winner") return `<span class="type-pill type-medio">Ganador</span>`;
-  if (market === "over_2_5") return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
-  if (pick.includes("2.5")) return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
+  if (market === "winner") {
+    return `<span class="type-pill type-medio">Ganador</span>`;
+  }
+  if (market === "over_2_5") {
+    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
+  }
+  if (market === "btts_yes") {
+    return `<span class="type-pill type-solido">Ambos marcan</span>`;
+  }
+
+  if (pick.includes("ambos marcan")) {
+    return `<span class="type-pill type-solido">Ambos marcan</span>`;
+  }
+  if (pick.includes("2.5")) {
+    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
+  }
   return `<span class="type-pill type-medio">Mercado</span>`;
 }
 
 function sourceBadge(sourceType) {
   const source = String(sourceType || "").toLowerCase();
-  if (source === "real_odds") return `<span class="source-pill source-real">Odds reales</span>`;
+
+  if (source === "real_odds") {
+    return `<span class="source-pill source-real">Odds reales</span>`;
+  }
   return `<span class="source-pill source-model">Modelo</span>`;
 }
 
 function resultBadge(status, label) {
   const s = String(status || "").toLowerCase();
-  if (s === "won") return `<span class="result-pill result-won">${escapeHtml(label || "Acertada")}</span>`;
-  if (s === "lost") return `<span class="result-pill result-lost">${escapeHtml(label || "Perdida")}</span>`;
+
+  if (s === "won") {
+    return `<span class="result-pill result-won">${escapeHtml(label || "Acertada")}</span>`;
+  }
+  if (s === "lost") {
+    return `<span class="result-pill result-lost">${escapeHtml(label || "Perdida")}</span>`;
+  }
   return `<span class="result-pill result-pending">${escapeHtml(label || "Pendiente")}</span>`;
 }
 
@@ -91,7 +122,7 @@ function loadingView() {
       <div class="spinner"></div>
       <div>
         <h3>Cargando picks e historial</h3>
-        <p>Buscando partidos de hoy y actualizando resultados anteriores.</p>
+        <p>Buscando partidos del día y actualizando resultados anteriores.</p>
       </div>
     </section>
   `;
@@ -148,28 +179,31 @@ function renderPickCard(pick) {
           <span class="label">Cuota</span>
           <span class="value">${escapeHtml(pick.odds ?? "-")}</span>
         </div>
+
         <div class="stat-box">
-          <span class="label">Prob. modelo</span>
-          <span class="value">${escapeHtml(pick.model_probability ?? "-")}%</span>
+          <span class="label">Confianza</span>
+          <span class="value">${escapeHtml(String(pick.confidence || "").toUpperCase() || "-")}</span>
         </div>
+
         <div class="stat-box">
-          <span class="label">Prob. implícita</span>
-          <span class="value">${escapeHtml(pick.implied_probability ?? "-")}%</span>
+          <span class="label">Tipo</span>
+          <span class="value">${escapeHtml(pick.type || "-")}</span>
         </div>
+
         <div class="stat-box">
-          <span class="label">Value</span>
-          <span class="value">${Number(pick.value_edge) >= 0 ? "+" : ""}${escapeHtml(pick.value_edge ?? "-")}%</span>
+          <span class="label">Mercado</span>
+          <span class="value">${escapeHtml(pick.market_name || "-")}</span>
         </div>
       </div>
 
       <div class="tipster-box">
-        <h3>Análisis IA</h3>
+        <h3>Lectura tipster</h3>
         <p>${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}</p>
       </div>
 
       <div class="pick-footer">
         <span><strong>Fuente:</strong> ${escapeHtml(sourceText(pick.source_type, pick.bookmaker))}</span>
-        <span><strong>Mercado:</strong> ${escapeHtml(pick.market_name || "-")}</span>
+        <span><strong>Partido:</strong> ${escapeHtml(pick.match || "-")}</span>
       </div>
     </article>
   `;
