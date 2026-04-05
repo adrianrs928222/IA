@@ -1,5 +1,5 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v4";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v5";
 
 const app = document.getElementById("app");
 
@@ -56,6 +56,13 @@ function sourceBadge(sourceType) {
   return `<span class="source-pill source-model">Modelo</span>`;
 }
 
+function sourceText(sourceType, bookmaker) {
+  const source = String(sourceType || "").toLowerCase();
+  if (source === "real_odds") return bookmaker || "Bookmaker";
+  if (source === "model_fallback") return "Modelo IA";
+  return bookmaker || "N/D";
+}
+
 function getBestOdds(picks) {
   if (!Array.isArray(picks) || picks.length === 0) return "-";
   const max = Math.max(...picks.map(p => Number(p.odds || 0)));
@@ -72,6 +79,11 @@ function getRealOddsCount(picks) {
   return picks.filter(p => String(p.source_type || "").toLowerCase() === "real_odds").length;
 }
 
+function getModelFallbackCount(picks) {
+  if (!Array.isArray(picks)) return 0;
+  return picks.filter(p => String(p.source_type || "").toLowerCase() === "model_fallback").length;
+}
+
 function formatCount(value) {
   return Number.isFinite(Number(value)) ? String(value) : "0";
 }
@@ -82,7 +94,7 @@ function loadingView() {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. Picks diarios con análisis inteligente, cuotas reales cuando existan y fallback del modelo cuando la API no traiga odds útiles.</p>
+        <p>Pronósticos deportivos con IA. El sistema combina cuotas reales de The Odds API y fallback del modelo para no quedarse vacío.</p>
       </div>
       <button class="refresh-btn" disabled>Cargando...</button>
     </section>
@@ -103,7 +115,7 @@ function errorView(message) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. Picks diarios con análisis inteligente, cuotas reales cuando existan y fallback del modelo cuando la API no traiga odds útiles.</p>
+        <p>Pronósticos deportivos con IA. El sistema combina cuotas reales de The Odds API y fallback del modelo para no quedarse vacío.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -123,7 +135,7 @@ function emptyView(data) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. Picks diarios con análisis inteligente, cuotas reales cuando existan y fallback del modelo cuando la API no traiga odds útiles.</p>
+        <p>Pronósticos deportivos con IA. El sistema combina cuotas reales de The Odds API y fallback del modelo para no quedarse vacío.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -151,7 +163,7 @@ function emptyView(data) {
       <div>
         <h3>No hay picks disponibles ahora mismo</h3>
         <p><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</p>
-        <p><strong>Generado a las:</strong> ${escapeHtml(data.generated_at || "-")}</p>
+        <p><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</p>
         <p><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</p>
         <p><strong>Próxima renovación:</strong> ${escapeHtml(data.cached_until || "-")}</p>
       </div>
@@ -160,7 +172,8 @@ function emptyView(data) {
 }
 
 function renderPickCard(pick) {
-  const isFallback = String(pick.source_type || "").toLowerCase() === "model_fallback";
+  const source = String(pick.source_type || "").toLowerCase();
+  const isFallback = source === "model_fallback";
 
   return `
     <article class="pick-card">
@@ -215,8 +228,9 @@ function renderPickCard(pick) {
       </div>
 
       <div class="pick-footer">
-        <span><strong>Fuente:</strong> ${isFallback ? "Modelo IA" : escapeHtml(pick.bookmaker || "N/D")}</span>
+        <span><strong>Fuente:</strong> ${escapeHtml(sourceText(pick.source_type, pick.bookmaker))}</span>
         <span><strong>Mercado:</strong> ${escapeHtml(pick.market_name || "-")}</span>
+        ${isFallback ? `<span><strong>Modo:</strong> IA Preview</span>` : `<span><strong>Modo:</strong> Cuota real</span>`}
       </div>
     </article>
   `;
@@ -233,13 +247,14 @@ function renderData(data) {
   const highConfidence = getHighConfidenceCount(picks);
   const bestOdds = getBestOdds(picks);
   const realOddsCount = getRealOddsCount(picks);
+  const modelFallbackCount = getModelFallbackCount(picks);
 
   app.innerHTML = `
     <section class="hero">
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. El sistema combina API-Football, análisis de forma reciente y fallback del modelo para no quedarse vacío.</p>
+        <p>Pronósticos deportivos con IA. El sistema combina The Odds API y modelo interno para mantener picks visibles cada día.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -270,7 +285,7 @@ function renderData(data) {
     </section>
 
     <section class="status-ok">
-      Picks actualizados correctamente. Cuando la API no devuelve odds válidas, el sistema muestra recomendaciones del modelo sobre partidos reales detectados.
+      Picks actualizados correctamente. ${modelFallbackCount > 0 ? `Hay ${modelFallbackCount} pick(s) apoyados por el modelo interno porque no había mercado utilizable.` : `Todos los picks visibles usan datos de mercado disponibles.`}
     </section>
 
     <section class="cards-grid">
@@ -289,9 +304,7 @@ async function loadPicks(forceRefresh = false) {
 
     const response = await fetch(url, {
       method: "GET",
-      headers: {
-        "Accept": "application/json"
-      },
+      headers: { "Accept": "application/json" },
       cache: "no-store"
     });
 
