@@ -1,6 +1,6 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
 const HISTORY_URL = "https://funcional-s4vd.onrender.com/history-picks";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v7";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v8";
 
 const app = document.getElementById("app");
 
@@ -33,9 +33,6 @@ function marketBadge(marketGroup, pickText) {
 
   if (market === "winner") return `<span class="type-pill type-medio">Ganador</span>`;
   if (market === "over_2_5") return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
-  if (market === "btts_yes") return `<span class="type-pill type-solido">Ambos marcan</span>`;
-
-  if (pick.includes("ambos marcan")) return `<span class="type-pill type-solido">Ambos marcan</span>`;
   if (pick.includes("2.5")) return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
   return `<span class="type-pill type-medio">Mercado</span>`;
 }
@@ -85,7 +82,7 @@ function loadingView() {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial de acertadas y perdidas.</p>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial con acertadas y perdidas.</p>
       </div>
       <button class="refresh-btn" disabled>Cargando...</button>
     </section>
@@ -106,7 +103,7 @@ function errorView(message) {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial de acertadas y perdidas.</p>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial con acertadas y perdidas.</p>
       </div>
       <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
@@ -117,51 +114,6 @@ function errorView(message) {
         <p>${escapeHtml(message)}</p>
       </div>
     </section>
-  `;
-}
-
-function emptyView(data, history) {
-  const summary = history?.summary || { total_picks: 0, won: 0, lost: 0, pending: 0, hit_rate: 0 };
-
-  app.innerHTML = `
-    <section class="hero">
-      <div>
-        <div class="eyebrow">PICKS DEL DÍA</div>
-        <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial de acertadas y perdidas.</p>
-      </div>
-      <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
-    </section>
-
-    <section class="summary-grid">
-      <div class="summary-card">
-        <span class="summary-label">Picks de hoy</span>
-        <strong class="summary-value">0</strong>
-      </div>
-      <div class="summary-card">
-        <span class="summary-label">Acertadas</span>
-        <strong class="summary-value">${escapeHtml(summary.won)}</strong>
-      </div>
-      <div class="summary-card">
-        <span class="summary-label">Perdidas</span>
-        <strong class="summary-value">${escapeHtml(summary.lost)}</strong>
-      </div>
-      <div class="summary-card">
-        <span class="summary-label">Hit rate</span>
-        <strong class="summary-value">${escapeHtml(summary.hit_rate)}%</strong>
-      </div>
-    </section>
-
-    <section class="status-card">
-      <div>
-        <h3>Hoy no hay picks válidos</h3>
-        <p><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</p>
-        <p><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</p>
-        <p><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</p>
-      </div>
-    </section>
-
-    ${renderHistory(history)}
   `;
 }
 
@@ -224,11 +176,15 @@ function renderPickCard(pick) {
 }
 
 function renderHistory(history) {
-  if (!history || !Array.isArray(history.days) || history.days.length === 0) {
-    return "";
-  }
+  if (!history || !Array.isArray(history.days) || history.days.length === 0) return "";
 
-  const summary = history.summary || { total_picks: 0, won: 0, lost: 0, pending: 0, hit_rate: 0 };
+  const summary = history.summary || {
+    total_picks: 0,
+    won: 0,
+    lost: 0,
+    pending: 0,
+    hit_rate: 0
+  };
 
   return `
     <section class="history-section">
@@ -279,7 +235,7 @@ function renderHistory(history) {
                 <div class="history-pick-row">
                   <div class="history-pick-main">
                     <strong>${escapeHtml(pick.match || "-")}</strong>
-                    <span>${escapeHtml(pick.pick || "-")} · ${escapeHtml(pick.odds ?? "-")}</span>
+                    <span>${escapeHtml(pick.pick || "-")} · cuota ${escapeHtml(pick.odds ?? "-")}</span>
                   </div>
                   <div class="history-pick-result">
                     ${resultBadge(pick.status, pick.result_label)}
@@ -294,11 +250,62 @@ function renderHistory(history) {
   `;
 }
 
+function renderEmpty(todayData, historyData) {
+  const summary = historyData?.summary || {
+    total_picks: 0,
+    won: 0,
+    lost: 0,
+    pending: 0,
+    hit_rate: 0
+  };
+
+  app.innerHTML = `
+    <section class="hero">
+      <div>
+        <div class="eyebrow">PICKS DEL DÍA</div>
+        <h1>Top Pronósticos Diarios</h1>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial con acertadas y perdidas.</p>
+      </div>
+      <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
+    </section>
+
+    <section class="summary-grid">
+      <div class="summary-card">
+        <span class="summary-label">Picks de hoy</span>
+        <strong class="summary-value">0</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Acertadas</span>
+        <strong class="summary-value">${escapeHtml(summary.won)}</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Perdidas</span>
+        <strong class="summary-value">${escapeHtml(summary.lost)}</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Hit rate</span>
+        <strong class="summary-value">${escapeHtml(summary.hit_rate)}%</strong>
+      </div>
+    </section>
+
+    <section class="status-card">
+      <div>
+        <h3>Hoy no hay picks válidos</h3>
+        <p><strong>Fecha:</strong> ${escapeHtml(todayData.date || "-")}</p>
+        <p><strong>Generado:</strong> ${escapeHtml(todayData.generated_at || "-")}</p>
+        <p><strong>Fuente:</strong> ${escapeHtml(todayData.source || "-")}</p>
+      </div>
+    </section>
+
+    ${renderHistory(historyData)}
+  `;
+}
+
 function renderData(todayData, historyData) {
   const picks = Array.isArray(todayData.picks) ? todayData.picks : [];
 
   if (picks.length === 0) {
-    emptyView(todayData, historyData);
+    renderEmpty(todayData, historyData);
     return;
   }
 
