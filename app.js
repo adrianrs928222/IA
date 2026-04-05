@@ -1,6 +1,7 @@
-const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const HISTORY_URL = "https://funcional-s4vd.onrender.com/history-picks";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v11";
+const BASE_URL = "https://funcional-s4vd.onrender.com";
+const BACKEND_URL = `${BASE_URL}/api/picks`;
+const HISTORY_URL = `${BASE_URL}/api/history`;
+const CACHE_KEY = "top-pronosticos-diarios-cache-v12";
 
 const app = document.getElementById("app");
 
@@ -13,66 +14,42 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
-function confidenceBadge(confidence) {
-  const c = String(confidence || "").toLowerCase();
+function confidenceText(confidence) {
+  const n = Number(confidence || 0);
+  if (n >= 75) return "ALTA";
+  if (n >= 65) return "MEDIA";
+  return "NORMAL";
+}
 
-  if (c === "verde") {
-    return `<span class="badge badge-green">VERDE</span>`;
+function confidenceBadge(confidence) {
+  const n = Number(confidence || 0);
+
+  if (n >= 75) {
+    return `<span class="badge badge-green">ALTA</span>`;
   }
-  if (c === "amarillo") {
-    return `<span class="badge badge-yellow">AMARILLO</span>`;
+  if (n >= 65) {
+    return `<span class="badge badge-yellow">MEDIA</span>`;
   }
-  return `<span class="badge badge-red">ROJO</span>`;
+  return `<span class="badge badge-red">NORMAL</span>`;
 }
 
 function pickTypeBadge(type) {
   const t = String(type || "").toLowerCase();
 
-  if (t === "solido") {
-    return `<span class="type-pill type-solido">Sólido</span>`;
+  if (t === "winner") {
+    return `<span class="type-pill type-medio">Ganador</span>`;
   }
-  if (t === "medio") {
-    return `<span class="type-pill type-medio">Medio</span>`;
+  if (t === "double_chance") {
+    return `<span class="type-pill type-solido">Doble oportunidad</span>`;
   }
-  if (t === "agresivo") {
-    return `<span class="type-pill type-agresivo">Agresivo</span>`;
+  if (t === "draw_no_bet") {
+    return `<span class="type-pill type-agresivo">Empate no apuesta</span>`;
   }
   return `<span class="type-pill">Pick</span>`;
 }
 
-function marketBadge(marketGroup, pickText) {
-  const market = String(marketGroup || "").toLowerCase();
-  const pick = String(pickText || "").toLowerCase();
-
-  if (market === "winner") {
-    return `<span class="type-pill type-medio">Ganador</span>`;
-  }
-  if (market === "over_2_5") {
-    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
-  }
-  if (market === "btts_yes") {
-    return `<span class="type-pill type-solido">Ambos marcan</span>`;
-  }
-
-  if (pick.includes("ambos marcan")) {
-    return `<span class="type-pill type-solido">Ambos marcan</span>`;
-  }
-  if (pick.includes("2.5")) {
-    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
-  }
-  return `<span class="type-pill type-medio">Mercado</span>`;
-}
-
-function sourceBadge(sourceType) {
-  const source = String(sourceType || "").toLowerCase();
-
-  if (source === "real_odds") {
-    return `<span class="source-pill source-real">Odds reales</span>`;
-  }
-  if (source === "model_odds") {
-    return `<span class="source-pill source-model">Modelo mixto</span>`;
-  }
-  return `<span class="source-pill source-model">Modelo</span>`;
+function sourceBadge() {
+  return `<span class="source-pill source-real">Odds reales</span>`;
 }
 
 function resultBadge(status, label) {
@@ -87,18 +64,6 @@ function resultBadge(status, label) {
   return `<span class="result-pill result-pending">${escapeHtml(label || "Pendiente")}</span>`;
 }
 
-function sourceText(sourceType, bookmaker) {
-  const source = String(sourceType || "").toLowerCase();
-
-  if (source === "real_odds") {
-    return bookmaker || "Bookmaker";
-  }
-  if (source === "model_odds") {
-    return "Modelo mixto";
-  }
-  return bookmaker || "Modelo";
-}
-
 function getBestOdds(picks) {
   if (!Array.isArray(picks) || picks.length === 0) return "-";
   const max = Math.max(...picks.map(p => Number(p.odds || 0)));
@@ -107,16 +72,21 @@ function getBestOdds(picks) {
 
 function getHighConfidenceCount(picks) {
   if (!Array.isArray(picks)) return 0;
-  return picks.filter(p => String(p.confidence || "").toLowerCase() === "verde").length;
+  return picks.filter(p => Number(p.confidence || 0) >= 75).length;
 }
 
 function getRealOddsCount(picks) {
   if (!Array.isArray(picks)) return 0;
-  return picks.filter(p => String(p.source_type || "").toLowerCase() === "real_odds").length;
+  return picks.length;
 }
 
 function formatCount(value) {
   return Number.isFinite(Number(value)) ? String(value) : "0";
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  return String(value).replace("T", " ").slice(0, 16);
 }
 
 function loadingView() {
@@ -134,7 +104,7 @@ function loadingView() {
       <div class="spinner"></div>
       <div>
         <h3>Cargando picks e historial</h3>
-        <p>Buscando partidos válidos y actualizando resultados anteriores.</p>
+        <p>Buscando partidos válidos y actualizando datos guardados.</p>
       </div>
     </section>
   `;
@@ -165,20 +135,19 @@ function renderPickCard(pick) {
     <article class="pick-card">
       <div class="pick-top">
         <div>
-          <div class="competition">${escapeHtml(pick.competition || "")}</div>
+          <div class="competition">${escapeHtml(pick.league || "")}</div>
           <h2 class="match">${escapeHtml(pick.match || "")}</h2>
         </div>
         <div class="kickoff">
           <span>🕒</span>
-          <strong>${escapeHtml(pick.starts_at || "--:--")}</strong>
+          <strong>${escapeHtml(pick.time_local || "--:--")}</strong>
         </div>
       </div>
 
       <div class="pick-tags">
-        ${pickTypeBadge(pick.type)}
-        ${marketBadge(pick.market_group, pick.pick)}
+        ${pickTypeBadge(pick.pick_type)}
         ${confidenceBadge(pick.confidence)}
-        ${sourceBadge(pick.source_type)}
+        ${sourceBadge()}
       </div>
 
       <div class="pick-main-line">
@@ -194,31 +163,84 @@ function renderPickCard(pick) {
 
         <div class="stat-box">
           <span class="label">Confianza</span>
-          <span class="value">${escapeHtml(String(pick.confidence || "").toUpperCase() || "-")}</span>
+          <span class="value">${escapeHtml(confidenceText(pick.confidence))}</span>
         </div>
 
         <div class="stat-box">
-          <span class="label">Tipo</span>
-          <span class="value">${escapeHtml(pick.type || "-")}</span>
+          <span class="label">Favorito</span>
+          <span class="value">${escapeHtml(pick.favorite_team || "-")}</span>
         </div>
 
         <div class="stat-box">
-          <span class="label">Value</span>
-          <span class="value">${Number(pick.value_edge) >= 0 ? "+" : ""}${escapeHtml(pick.value_edge ?? "-")}%</span>
+          <span class="label">Bookmaker</span>
+          <span class="value">${escapeHtml(pick.bookmaker || "-")}</span>
         </div>
       </div>
 
       <div class="tipster-box">
         <h3>Lectura tipster</h3>
-        <p>${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}</p>
+        <p>
+          ${escapeHtml(pick.favorite_team || "-")} parte como favorito para este partido.
+          Probabilidades estimadas: local ${escapeHtml(pick.prob_home ?? "-")}%,
+          empate ${escapeHtml(pick.prob_draw ?? "-")}%,
+          visitante ${escapeHtml(pick.prob_away ?? "-")}%.
+        </p>
       </div>
 
       <div class="pick-footer">
-        <span><strong>Fuente:</strong> ${escapeHtml(sourceText(pick.source_type, pick.bookmaker))}</span>
-        <span><strong>Mercado:</strong> ${escapeHtml(pick.market_name || "-")}</span>
+        <span><strong>Fuente:</strong> ${escapeHtml(pick.bookmaker || "Bookmaker")}</span>
+        <span><strong>Tipo:</strong> ${escapeHtml(pick.pick_type || "-")}</span>
       </div>
     </article>
   `;
+}
+
+function normalizeHistory(rawHistory) {
+  if (!rawHistory || !rawHistory.days || typeof rawHistory.days !== "object") {
+    return {
+      summary: { total_picks: 0, won: 0, lost: 0, pending: 0, hit_rate: 0 },
+      days: []
+    };
+  }
+
+  const entries = Object.entries(rawHistory.days)
+    .sort((a, b) => String(b[0]).localeCompare(String(a[0])))
+    .map(([date, day]) => {
+      const picks = Array.isArray(day?.picks) ? day.picks : [];
+
+      const normalizedPicks = picks.map(p => ({
+        match: p.match || `${p.home_team || ""} vs ${p.away_team || ""}`.trim(),
+        pick: p.pick || "-",
+        odds: p.odds ?? "-",
+        status: "pending",
+        result_label: "Pendiente"
+      }));
+
+      return {
+        date,
+        generated_at: day?.saved_at ? formatDateTime(day.saved_at) : "-",
+        picks: normalizedPicks,
+        stats: {
+          won: 0,
+          lost: 0,
+          pending: normalizedPicks.length
+        }
+      };
+    });
+
+  const totalPicks = entries.reduce((acc, day) => acc + (day.picks?.length || 0), 0);
+  const pending = totalPicks;
+
+  return {
+    summary: {
+      total_picks: totalPicks,
+      won: 0,
+      lost: 0,
+      pending,
+      hit_rate: 0
+    },
+    days: entries
+  };
 }
 
 function renderHistory(history) {
@@ -238,7 +260,7 @@ function renderHistory(history) {
         <div>
           <div class="eyebrow">HISTORIAL</div>
           <h2>Historial de picks</h2>
-          <p>Seguimiento de acertadas, perdidas y pendientes.</p>
+          <p>Seguimiento guardado por días.</p>
         </div>
       </div>
 
@@ -337,9 +359,9 @@ function renderEmpty(todayData, historyData) {
     <section class="status-card">
       <div>
         <h3>No hay picks válidos ahora mismo</h3>
-        <p><strong>Fecha:</strong> ${escapeHtml(todayData.date || "-")}</p>
-        <p><strong>Generado:</strong> ${escapeHtml(todayData.generated_at || "-")}</p>
-        <p><strong>Fuente:</strong> ${escapeHtml(todayData.source || "-")}</p>
+        <p><strong>Fecha:</strong> ${escapeHtml(todayData.cache_day || "-")}</p>
+        <p><strong>Generado:</strong> ${escapeHtml(formatDateTime(todayData.generated_at) || "-")}</p>
+        <p><strong>Hasta:</strong> ${escapeHtml(formatDateTime(todayData.cached_until) || "-")}</p>
       </div>
     </section>
 
@@ -364,15 +386,15 @@ function renderData(todayData, historyData) {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Mercados mixtos, picks fijados durante todo el día y seguimiento real del historial para acertadas y perdidas.</p>
+        <p>Mercados mixtos, picks fijados durante todo el día y seguimiento del historial guardado.</p>
       </div>
       <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
 
     <section class="meta-strip">
-      <div><strong>Fecha:</strong> ${escapeHtml(todayData.date || "-")}</div>
-      <div><strong>Generado:</strong> ${escapeHtml(todayData.generated_at || "-")}</div>
-      <div><strong>Se mantiene hasta:</strong> ${escapeHtml(todayData.cached_until || "-")}</div>
+      <div><strong>Fecha:</strong> ${escapeHtml(todayData.cache_day || "-")}</div>
+      <div><strong>Generado:</strong> ${escapeHtml(formatDateTime(todayData.generated_at) || "-")}</div>
+      <div><strong>Se mantiene hasta:</strong> ${escapeHtml(formatDateTime(todayData.cached_until) || "-")}</div>
     </section>
 
     <section class="summary-grid">
@@ -395,7 +417,7 @@ function renderData(todayData, historyData) {
     </section>
 
     <section class="status-ok">
-      Picks diarios cargados correctamente. El sistema mantiene los picks del día y actualiza el historial aparte.
+      Picks diarios cargados correctamente. El sistema mantiene los picks del día y guarda histórico por fecha.
     </section>
 
     <section class="cards-grid">
@@ -425,13 +447,16 @@ async function loadAll(forceRefresh = false) {
 
   try {
     const todayUrl = forceRefresh
-      ? `${BACKEND_URL}?refresh=1&ts=${Date.now()}`
-      : BACKEND_URL;
+      ? `${BACKEND_URL}?force_refresh=true&ts=${Date.now()}`
+      : `${BACKEND_URL}?ts=${Date.now()}`;
 
-    const [todayData, historyData] = await Promise.all([
+    const [todayDataRaw, historyRaw] = await Promise.all([
       fetchJson(todayUrl),
       fetchJson(`${HISTORY_URL}?ts=${Date.now()}`)
     ]);
+
+    const historyData = normalizeHistory(historyRaw);
+    const todayData = todayDataRaw || {};
 
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ todayData, historyData }));
@@ -454,7 +479,6 @@ async function loadAll(forceRefresh = false) {
   }
 }
 
-// primera carga forzada para evitar cache viejo
 document.addEventListener("DOMContentLoaded", () => {
   loadAll(true);
 });
