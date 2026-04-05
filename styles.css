@@ -136,7 +136,7 @@ h1, h2, h3, p, strong, span, small {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 16px;
   padding: 16px;
@@ -217,7 +217,7 @@ h1, h2, h3, p, strong, span, small {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   align-items: start;
-  margin-bottom: 34px;
+  margin-bottom: 8px;
 }
 
 /* =========================
@@ -423,11 +423,11 @@ h1, h2, h3, p, strong, span, small {
 }
 
 /* =========================
-   HISTORY / COMBO
+   HISTORY / SECTIONS
 ========================= */
 
 .history {
-  margin-top: 8px;
+  margin-top: 14px;
   margin-bottom: 28px;
   padding: 20px;
   border-radius: var(--radius-xl);
@@ -565,6 +565,15 @@ h1, h2, h3, p, strong, span, small {
 }
 
 /* =========================
+   FOOTER
+========================= */
+
+footer {
+  width: min(var(--container), calc(100% - 28px));
+  margin: 0 auto 34px;
+}
+
+/* =========================
    SCROLLBAR
 ========================= */
 
@@ -602,7 +611,8 @@ h1, h2, h3, p, strong, span, small {
 
 @media (max-width: 720px) {
   .hero,
-  #app {
+  #app,
+  footer {
     width: min(100% - 18px, var(--container));
   }
 
