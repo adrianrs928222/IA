@@ -1,5 +1,5 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v5";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v6";
 
 const app = document.getElementById("app");
 
@@ -23,9 +23,8 @@ function confidenceBadge(confidence) {
 function pickTypeBadge(type) {
   const t = String(type || "").toLowerCase();
 
-  if (t === "solido") return `<span class="type-pill type-solido">Sólido</span>`;
-  if (t === "medio") return `<span class="type-pill type-medio">Medio</span>`;
-  if (t === "agresivo") return `<span class="type-pill type-agresivo">Agresivo</span>`;
+  if (t === "medio") return `<span class="type-pill type-medio">Media</span>`;
+  if (t === "agresivo") return `<span class="type-pill type-agresivo">Alta</span>`;
   return `<span class="type-pill">Pick</span>`;
 }
 
@@ -49,18 +48,13 @@ function sourceBadge(sourceType) {
     return `<span class="source-pill source-real">Odds reales</span>`;
   }
 
-  if (source === "model_fallback") {
-    return `<span class="source-pill source-model">IA fallback</span>`;
-  }
-
   return `<span class="source-pill source-model">Modelo</span>`;
 }
 
 function sourceText(sourceType, bookmaker) {
   const source = String(sourceType || "").toLowerCase();
   if (source === "real_odds") return bookmaker || "Bookmaker";
-  if (source === "model_fallback") return "Modelo IA";
-  return bookmaker || "N/D";
+  return "Modelo IA";
 }
 
 function getBestOdds(picks) {
@@ -79,11 +73,6 @@ function getRealOddsCount(picks) {
   return picks.filter(p => String(p.source_type || "").toLowerCase() === "real_odds").length;
 }
 
-function getModelFallbackCount(picks) {
-  if (!Array.isArray(picks)) return 0;
-  return picks.filter(p => String(p.source_type || "").toLowerCase() === "model_fallback").length;
-}
-
 function formatCount(value) {
   return Number.isFinite(Number(value)) ? String(value) : "0";
 }
@@ -92,9 +81,9 @@ function loadingView() {
   app.innerHTML = `
     <section class="hero">
       <div>
-        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. El sistema combina cuotas reales de The Odds API y fallback del modelo para no quedarse vacío.</p>
+        <p>Solo partidos del día, solo prepartido y picks fijos hasta el siguiente día. El sistema prioriza cuotas medias y altas dentro de tus ligas objetivo.</p>
       </div>
       <button class="refresh-btn" disabled>Cargando...</button>
     </section>
@@ -102,8 +91,8 @@ function loadingView() {
     <section class="status-card">
       <div class="spinner"></div>
       <div>
-        <h3>Consultando backend</h3>
-        <p>Analizando ganador, más de 2.5 goles y ambos marcan.</p>
+        <h3>Consultando picks del día</h3>
+        <p>Buscando partidos de hoy y filtrando solo picks válidos antes del inicio.</p>
       </div>
     </section>
   `;
@@ -113,9 +102,9 @@ function errorView(message) {
   app.innerHTML = `
     <section class="hero">
       <div>
-        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. El sistema combina cuotas reales de The Odds API y fallback del modelo para no quedarse vacío.</p>
+        <p>Solo partidos del día, solo prepartido y picks fijos hasta el siguiente día. El sistema prioriza cuotas medias y altas dentro de tus ligas objetivo.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -133,16 +122,16 @@ function emptyView(data) {
   app.innerHTML = `
     <section class="hero">
       <div>
-        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. El sistema combina cuotas reales de The Odds API y fallback del modelo para no quedarse vacío.</p>
+        <p>Solo partidos del día, solo prepartido y picks fijos hasta el siguiente día. El sistema prioriza cuotas medias y altas dentro de tus ligas objetivo.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
 
     <section class="summary-grid">
       <div class="summary-card">
-        <span class="summary-label">Picks del día</span>
+        <span class="summary-label">Picks de hoy</span>
         <strong class="summary-value">0</strong>
       </div>
       <div class="summary-card">
@@ -161,20 +150,17 @@ function emptyView(data) {
 
     <section class="status-card">
       <div>
-        <h3>No hay picks disponibles ahora mismo</h3>
+        <h3>Hoy no hay picks válidos</h3>
         <p><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</p>
         <p><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</p>
         <p><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</p>
-        <p><strong>Próxima renovación:</strong> ${escapeHtml(data.cached_until || "-")}</p>
+        <p><strong>Se mantiene hasta:</strong> ${escapeHtml(data.cached_until || "-")}</p>
       </div>
     </section>
   `;
 }
 
 function renderPickCard(pick) {
-  const source = String(pick.source_type || "").toLowerCase();
-  const isFallback = source === "model_fallback";
-
   return `
     <article class="pick-card">
       <div class="pick-top">
@@ -230,7 +216,6 @@ function renderPickCard(pick) {
       <div class="pick-footer">
         <span><strong>Fuente:</strong> ${escapeHtml(sourceText(pick.source_type, pick.bookmaker))}</span>
         <span><strong>Mercado:</strong> ${escapeHtml(pick.market_name || "-")}</span>
-        ${isFallback ? `<span><strong>Modo:</strong> IA Preview</span>` : `<span><strong>Modo:</strong> Cuota real</span>`}
       </div>
     </article>
   `;
@@ -247,14 +232,13 @@ function renderData(data) {
   const highConfidence = getHighConfidenceCount(picks);
   const bestOdds = getBestOdds(picks);
   const realOddsCount = getRealOddsCount(picks);
-  const modelFallbackCount = getModelFallbackCount(picks);
 
   app.innerHTML = `
     <section class="hero">
       <div>
-        <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
+        <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. El sistema combina The Odds API y modelo interno para mantener picks visibles cada día.</p>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante todo el día. Aunque pulses actualizar, los picks no cambian hasta la siguiente jornada.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -262,12 +246,12 @@ function renderData(data) {
     <section class="meta-strip">
       <div><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</div>
       <div><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</div>
-      <div><strong>Renueva:</strong> cada 24h</div>
+      <div><strong>Se mantiene hasta:</strong> ${escapeHtml(data.cached_until || "-")}</div>
     </section>
 
     <section class="summary-grid">
       <div class="summary-card">
-        <span class="summary-label">Picks del día</span>
+        <span class="summary-label">Picks de hoy</span>
         <strong class="summary-value">${formatCount(data.count ?? picks.length)}</strong>
       </div>
       <div class="summary-card">
@@ -285,7 +269,7 @@ function renderData(data) {
     </section>
 
     <section class="status-ok">
-      Picks actualizados correctamente. ${modelFallbackCount > 0 ? `Hay ${modelFallbackCount} pick(s) apoyados por el modelo interno porque no había mercado utilizable.` : `Todos los picks visibles usan datos de mercado disponibles.`}
+      Picks diarios fijados correctamente. Solo se muestran partidos de hoy y nunca encuentros en juego.
     </section>
 
     <section class="cards-grid">
