@@ -1,5 +1,6 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v6";
+const HISTORY_URL = "https://funcional-s4vd.onrender.com/history-picks";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v7";
 
 const app = document.getElementById("app");
 
@@ -14,7 +15,6 @@ function escapeHtml(str) {
 
 function confidenceBadge(confidence) {
   const c = String(confidence || "").toLowerCase();
-
   if (c === "verde") return `<span class="badge badge-green">VERDE</span>`;
   if (c === "amarillo") return `<span class="badge badge-yellow">AMARILLO</span>`;
   return `<span class="badge badge-red">ROJO</span>`;
@@ -22,7 +22,6 @@ function confidenceBadge(confidence) {
 
 function pickTypeBadge(type) {
   const t = String(type || "").toLowerCase();
-
   if (t === "medio") return `<span class="type-pill type-medio">Media</span>`;
   if (t === "agresivo") return `<span class="type-pill type-agresivo">Alta</span>`;
   return `<span class="type-pill">Pick</span>`;
@@ -43,12 +42,15 @@ function marketBadge(marketGroup, pickText) {
 
 function sourceBadge(sourceType) {
   const source = String(sourceType || "").toLowerCase();
-
-  if (source === "real_odds") {
-    return `<span class="source-pill source-real">Odds reales</span>`;
-  }
-
+  if (source === "real_odds") return `<span class="source-pill source-real">Odds reales</span>`;
   return `<span class="source-pill source-model">Modelo</span>`;
+}
+
+function resultBadge(status, label) {
+  const s = String(status || "").toLowerCase();
+  if (s === "won") return `<span class="result-pill result-won">${escapeHtml(label || "Acertada")}</span>`;
+  if (s === "lost") return `<span class="result-pill result-lost">${escapeHtml(label || "Perdida")}</span>`;
+  return `<span class="result-pill result-pending">${escapeHtml(label || "Pendiente")}</span>`;
 }
 
 function sourceText(sourceType, bookmaker) {
@@ -83,7 +85,7 @@ function loadingView() {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos del día, solo prepartido y picks fijos hasta el siguiente día. El sistema prioriza cuotas medias y altas dentro de tus ligas objetivo.</p>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial de acertadas y perdidas.</p>
       </div>
       <button class="refresh-btn" disabled>Cargando...</button>
     </section>
@@ -91,8 +93,8 @@ function loadingView() {
     <section class="status-card">
       <div class="spinner"></div>
       <div>
-        <h3>Consultando picks del día</h3>
-        <p>Buscando partidos de hoy y filtrando solo picks válidos antes del inicio.</p>
+        <h3>Cargando picks e historial</h3>
+        <p>Buscando partidos de hoy y actualizando resultados anteriores.</p>
       </div>
     </section>
   `;
@@ -104,9 +106,9 @@ function errorView(message) {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos del día, solo prepartido y picks fijos hasta el siguiente día. El sistema prioriza cuotas medias y altas dentro de tus ligas objetivo.</p>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial de acertadas y perdidas.</p>
       </div>
-      <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
+      <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
 
     <section class="status-card error">
@@ -118,15 +120,17 @@ function errorView(message) {
   `;
 }
 
-function emptyView(data) {
+function emptyView(data, history) {
+  const summary = history?.summary || { total_picks: 0, won: 0, lost: 0, pending: 0, hit_rate: 0 };
+
   app.innerHTML = `
     <section class="hero">
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos del día, solo prepartido y picks fijos hasta el siguiente día. El sistema prioriza cuotas medias y altas dentro de tus ligas objetivo.</p>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial de acertadas y perdidas.</p>
       </div>
-      <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
+      <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
 
     <section class="summary-grid">
@@ -135,16 +139,16 @@ function emptyView(data) {
         <strong class="summary-value">0</strong>
       </div>
       <div class="summary-card">
-        <span class="summary-label">Mejor cuota</span>
-        <strong class="summary-value">-</strong>
+        <span class="summary-label">Acertadas</span>
+        <strong class="summary-value">${escapeHtml(summary.won)}</strong>
       </div>
       <div class="summary-card">
-        <span class="summary-label">Confianza alta</span>
-        <strong class="summary-value">0</strong>
+        <span class="summary-label">Perdidas</span>
+        <strong class="summary-value">${escapeHtml(summary.lost)}</strong>
       </div>
       <div class="summary-card">
-        <span class="summary-label">Odds reales</span>
-        <strong class="summary-value">0</strong>
+        <span class="summary-label">Hit rate</span>
+        <strong class="summary-value">${escapeHtml(summary.hit_rate)}%</strong>
       </div>
     </section>
 
@@ -154,9 +158,10 @@ function emptyView(data) {
         <p><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</p>
         <p><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</p>
         <p><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</p>
-        <p><strong>Se mantiene hasta:</strong> ${escapeHtml(data.cached_until || "-")}</p>
       </div>
     </section>
+
+    ${renderHistory(history)}
   `;
 }
 
@@ -191,17 +196,14 @@ function renderPickCard(pick) {
           <span class="label">Cuota</span>
           <span class="value">${escapeHtml(pick.odds ?? "-")}</span>
         </div>
-
         <div class="stat-box">
           <span class="label">Prob. modelo</span>
           <span class="value">${escapeHtml(pick.model_probability ?? "-")}%</span>
         </div>
-
         <div class="stat-box">
           <span class="label">Prob. implícita</span>
           <span class="value">${escapeHtml(pick.implied_probability ?? "-")}%</span>
         </div>
-
         <div class="stat-box">
           <span class="label">Value</span>
           <span class="value">${Number(pick.value_edge) >= 0 ? "+" : ""}${escapeHtml(pick.value_edge ?? "-")}%</span>
@@ -221,11 +223,82 @@ function renderPickCard(pick) {
   `;
 }
 
-function renderData(data) {
-  const picks = Array.isArray(data.picks) ? data.picks : [];
+function renderHistory(history) {
+  if (!history || !Array.isArray(history.days) || history.days.length === 0) {
+    return "";
+  }
+
+  const summary = history.summary || { total_picks: 0, won: 0, lost: 0, pending: 0, hit_rate: 0 };
+
+  return `
+    <section class="history-section">
+      <div class="history-header">
+        <div>
+          <div class="eyebrow">HISTORIAL</div>
+          <h2>Historial de picks</h2>
+          <p>Seguimiento de acertadas, perdidas y pendientes.</p>
+        </div>
+      </div>
+
+      <section class="summary-grid history-summary-grid">
+        <div class="summary-card">
+          <span class="summary-label">Total picks</span>
+          <strong class="summary-value">${escapeHtml(summary.total_picks)}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Acertadas</span>
+          <strong class="summary-value">${escapeHtml(summary.won)}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Perdidas</span>
+          <strong class="summary-value">${escapeHtml(summary.lost)}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Hit rate</span>
+          <strong class="summary-value">${escapeHtml(summary.hit_rate)}%</strong>
+        </div>
+      </section>
+
+      <div class="history-days">
+        ${history.days.map(day => `
+          <article class="history-day-card">
+            <div class="history-day-top">
+              <div>
+                <h3>${escapeHtml(day.date || "-")}</h3>
+                <p>${escapeHtml(day.generated_at || "-")}</p>
+              </div>
+              <div class="history-day-stats">
+                ${resultBadge("won", `Aciertos: ${day.stats?.won ?? 0}`)}
+                ${resultBadge("lost", `Fallos: ${day.stats?.lost ?? 0}`)}
+                ${resultBadge("pending", `Pendientes: ${day.stats?.pending ?? 0}`)}
+              </div>
+            </div>
+
+            <div class="history-picks-list">
+              ${(day.picks || []).map(pick => `
+                <div class="history-pick-row">
+                  <div class="history-pick-main">
+                    <strong>${escapeHtml(pick.match || "-")}</strong>
+                    <span>${escapeHtml(pick.pick || "-")} · ${escapeHtml(pick.odds ?? "-")}</span>
+                  </div>
+                  <div class="history-pick-result">
+                    ${resultBadge(pick.status, pick.result_label)}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderData(todayData, historyData) {
+  const picks = Array.isArray(todayData.picks) ? todayData.picks : [];
 
   if (picks.length === 0) {
-    emptyView(data);
+    emptyView(todayData, historyData);
     return;
   }
 
@@ -238,21 +311,21 @@ function renderData(data) {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante todo el día. Aunque pulses actualizar, los picks no cambian hasta la siguiente jornada.</p>
+        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante todo el día. Incluye historial con acertadas y perdidas.</p>
       </div>
-      <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
+      <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
 
     <section class="meta-strip">
-      <div><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</div>
-      <div><strong>Generado:</strong> ${escapeHtml(data.generated_at || "-")}</div>
-      <div><strong>Se mantiene hasta:</strong> ${escapeHtml(data.cached_until || "-")}</div>
+      <div><strong>Fecha:</strong> ${escapeHtml(todayData.date || "-")}</div>
+      <div><strong>Generado:</strong> ${escapeHtml(todayData.generated_at || "-")}</div>
+      <div><strong>Se mantiene hasta:</strong> ${escapeHtml(todayData.cached_until || "-")}</div>
     </section>
 
     <section class="summary-grid">
       <div class="summary-card">
         <span class="summary-label">Picks de hoy</span>
-        <strong class="summary-value">${formatCount(data.count ?? picks.length)}</strong>
+        <strong class="summary-value">${formatCount(todayData.count ?? picks.length)}</strong>
       </div>
       <div class="summary-card">
         <span class="summary-label">Mejor cuota</span>
@@ -275,42 +348,51 @@ function renderData(data) {
     <section class="cards-grid">
       ${picks.map(renderPickCard).join("")}
     </section>
+
+    ${renderHistory(historyData)}
   `;
 }
 
-async function loadPicks(forceRefresh = false) {
+async function fetchJson(url) {
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Accept": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function loadAll(forceRefresh = false) {
   loadingView();
 
   try {
-    const url = forceRefresh
+    const todayUrl = forceRefresh
       ? `${BACKEND_URL}?refresh=1&ts=${Date.now()}`
       : BACKEND_URL;
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { "Accept": "application/json" },
-      cache: "no-store"
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
+    const [todayData, historyData] = await Promise.all([
+      fetchJson(todayUrl),
+      fetchJson(`${HISTORY_URL}?ts=${Date.now()}`)
+    ]);
 
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ todayData, historyData }));
     } catch (_) {}
 
-    renderData(data);
+    renderData(todayData, historyData);
   } catch (error) {
-    console.error("Error cargando picks:", error);
+    console.error("Error cargando datos:", error);
 
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        renderData(parsed);
+        renderData(parsed.todayData, parsed.historyData);
         return;
       }
     } catch (_) {}
@@ -319,5 +401,5 @@ async function loadPicks(forceRefresh = false) {
   }
 }
 
-window.loadPicks = loadPicks;
-document.addEventListener("DOMContentLoaded", () => loadPicks(false));
+window.loadAll = loadAll;
+document.addEventListener("DOMContentLoaded", () => loadAll(false));
