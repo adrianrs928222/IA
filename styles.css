@@ -68,7 +68,7 @@ body::before {
     );
 }
 
-h1, h2, h3, p {
+h1, h2, h3, p, strong, span, small {
   margin: 0;
 }
 
@@ -205,6 +205,7 @@ h1, h2, h3, p {
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  line-height: 1.5;
 }
 
 /* =========================
@@ -216,10 +217,11 @@ h1, h2, h3, p {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   align-items: start;
+  margin-bottom: 34px;
 }
 
 /* =========================
-   CARD
+   PICK CARD
 ========================= */
 
 .card {
@@ -320,13 +322,22 @@ h1, h2, h3, p {
 }
 
 .stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 14px;
+}
+
+.stats span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 0.9rem;
   color: var(--text-soft);
-  font-size: 0.95rem;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.065);
 }
 
 .score {
@@ -412,11 +423,11 @@ h1, h2, h3, p {
 }
 
 /* =========================
-   HISTORY
+   HISTORY PRO
 ========================= */
 
 .history {
-  margin-top: 34px;
+  margin-top: 8px;
   padding: 20px;
   border-radius: var(--radius-xl);
   background: var(--panel);
@@ -434,7 +445,7 @@ h1, h2, h3, p {
 
 .day {
   padding: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   border-radius: 18px;
   background: rgba(255,255,255,0.035);
   border: 1px solid rgba(255,255,255,0.06);
@@ -445,14 +456,83 @@ h1, h2, h3, p {
 }
 
 .day h3 {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 1rem;
   color: var(--text);
 }
 
-.day > div {
+.day-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.day-stats span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 0.9rem;
   color: var(--text-soft);
-  font-size: 0.94rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.07);
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.history-row:hover {
+  background: rgba(255,255,255,0.065);
+  border-color: rgba(110,168,254,0.2);
+  transform: translateY(-1px);
+}
+
+.history-row-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.history-row-left strong {
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.history-row-left span {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.history-row-left small {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.history-row-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 /* =========================
@@ -473,22 +553,14 @@ h1, h2, h3, p {
   -webkit-backdrop-filter: blur(14px);
 }
 
+.empty-state {
+  line-height: 1.55;
+}
+
 .error-box {
   color: #ffd6d6;
   border-color: rgba(239, 68, 68, 0.22);
   background: rgba(239, 68, 68, 0.08);
-}
-
-/* =========================
-   FOOTER
-========================= */
-
-.footer {
-  width: min(var(--container), calc(100% - 28px));
-  margin: 12px auto 34px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.9rem;
 }
 
 /* =========================
@@ -529,8 +601,7 @@ h1, h2, h3, p {
 
 @media (max-width: 720px) {
   .hero,
-  #app,
-  .footer {
+  #app {
     width: min(100% - 18px, var(--container));
   }
 
@@ -580,6 +651,16 @@ h1, h2, h3, p {
   .day {
     padding: 14px;
   }
+
+  .history-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .history-row-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 480px) {
@@ -605,5 +686,10 @@ h1, h2, h3, p {
   .r,
   .t {
     font-size: 0.74rem;
+  }
+
+  .stats span,
+  .day-stats span {
+    font-size: 0.84rem;
   }
 }
