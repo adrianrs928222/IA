@@ -1,6 +1,6 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
 const HISTORY_URL = "https://funcional-s4vd.onrender.com/history-picks";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v9";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v11";
 
 const app = document.getElementById("app");
 
@@ -28,11 +28,14 @@ function confidenceBadge(confidence) {
 function pickTypeBadge(type) {
   const t = String(type || "").toLowerCase();
 
+  if (t === "solido") {
+    return `<span class="type-pill type-solido">Sólido</span>`;
+  }
   if (t === "medio") {
-    return `<span class="type-pill type-medio">Media</span>`;
+    return `<span class="type-pill type-medio">Medio</span>`;
   }
   if (t === "agresivo") {
-    return `<span class="type-pill type-agresivo">Alta</span>`;
+    return `<span class="type-pill type-agresivo">Agresivo</span>`;
   }
   return `<span class="type-pill">Pick</span>`;
 }
@@ -66,6 +69,9 @@ function sourceBadge(sourceType) {
   if (source === "real_odds") {
     return `<span class="source-pill source-real">Odds reales</span>`;
   }
+  if (source === "model_odds") {
+    return `<span class="source-pill source-model">Modelo mixto</span>`;
+  }
   return `<span class="source-pill source-model">Modelo</span>`;
 }
 
@@ -83,8 +89,14 @@ function resultBadge(status, label) {
 
 function sourceText(sourceType, bookmaker) {
   const source = String(sourceType || "").toLowerCase();
-  if (source === "real_odds") return bookmaker || "Bookmaker";
-  return "Modelo IA";
+
+  if (source === "real_odds") {
+    return bookmaker || "Bookmaker";
+  }
+  if (source === "model_odds") {
+    return "Modelo mixto";
+  }
+  return bookmaker || "Modelo";
 }
 
 function getBestOdds(picks) {
@@ -113,7 +125,7 @@ function loadingView() {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial con acertadas y perdidas.</p>
+        <p>Solo partidos cercanos, picks fijados durante el día, mercados mixtos y seguimiento completo del historial.</p>
       </div>
       <button class="refresh-btn" disabled>Cargando...</button>
     </section>
@@ -122,7 +134,7 @@ function loadingView() {
       <div class="spinner"></div>
       <div>
         <h3>Cargando picks e historial</h3>
-        <p>Buscando partidos del día y actualizando resultados anteriores.</p>
+        <p>Buscando partidos válidos y actualizando resultados anteriores.</p>
       </div>
     </section>
   `;
@@ -134,7 +146,7 @@ function errorView(message) {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial con acertadas y perdidas.</p>
+        <p>Solo partidos cercanos, picks fijados durante el día, mercados mixtos y seguimiento completo del historial.</p>
       </div>
       <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
@@ -191,8 +203,8 @@ function renderPickCard(pick) {
         </div>
 
         <div class="stat-box">
-          <span class="label">Mercado</span>
-          <span class="value">${escapeHtml(pick.market_name || "-")}</span>
+          <span class="label">Value</span>
+          <span class="value">${Number(pick.value_edge) >= 0 ? "+" : ""}${escapeHtml(pick.value_edge ?? "-")}%</span>
         </div>
       </div>
 
@@ -203,7 +215,7 @@ function renderPickCard(pick) {
 
       <div class="pick-footer">
         <span><strong>Fuente:</strong> ${escapeHtml(sourceText(pick.source_type, pick.bookmaker))}</span>
-        <span><strong>Partido:</strong> ${escapeHtml(pick.match || "-")}</span>
+        <span><strong>Mercado:</strong> ${escapeHtml(pick.market_name || "-")}</span>
       </div>
     </article>
   `;
@@ -298,7 +310,7 @@ function renderEmpty(todayData, historyData) {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante el día. Incluye historial con acertadas y perdidas.</p>
+        <p>Solo partidos cercanos, picks fijados durante el día, mercados mixtos y seguimiento completo del historial.</p>
       </div>
       <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
@@ -324,7 +336,7 @@ function renderEmpty(todayData, historyData) {
 
     <section class="status-card">
       <div>
-        <h3>Hoy no hay picks válidos</h3>
+        <h3>No hay picks válidos ahora mismo</h3>
         <p><strong>Fecha:</strong> ${escapeHtml(todayData.date || "-")}</p>
         <p><strong>Generado:</strong> ${escapeHtml(todayData.generated_at || "-")}</p>
         <p><strong>Fuente:</strong> ${escapeHtml(todayData.source || "-")}</p>
@@ -352,7 +364,7 @@ function renderData(todayData, historyData) {
       <div>
         <div class="eyebrow">PICKS DEL DÍA</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Solo partidos de hoy, solo prepartido y picks bloqueados durante todo el día. Incluye historial con acertadas y perdidas.</p>
+        <p>Mercados mixtos, picks fijados durante todo el día y seguimiento real del historial para acertadas y perdidas.</p>
       </div>
       <button class="refresh-btn" onclick="loadAll(true)">Actualizar</button>
     </section>
@@ -383,7 +395,7 @@ function renderData(todayData, historyData) {
     </section>
 
     <section class="status-ok">
-      Picks diarios fijados correctamente. Solo se muestran partidos de hoy y nunca encuentros en juego.
+      Picks diarios cargados correctamente. El sistema mantiene los picks del día y actualiza el historial aparte.
     </section>
 
     <section class="cards-grid">
@@ -442,5 +454,9 @@ async function loadAll(forceRefresh = false) {
   }
 }
 
+// primera carga forzada para evitar cache viejo
+document.addEventListener("DOMContentLoaded", () => {
+  loadAll(true);
+});
+
 window.loadAll = loadAll;
-document.addEventListener("DOMContentLoaded", () => loadAll(false));
