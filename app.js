@@ -1,5 +1,5 @@
 const BACKEND_URL = "https://funcional-s4vd.onrender.com/top-picks-today";
-const CACHE_KEY = "top-pronosticos-diarios-cache-v3";
+const CACHE_KEY = "top-pronosticos-diarios-cache-v4";
 
 const app = document.getElementById("app");
 
@@ -15,50 +15,45 @@ function escapeHtml(str) {
 function confidenceBadge(confidence) {
   const c = String(confidence || "").toLowerCase();
 
-  if (c === "verde") {
-    return `<span class="badge badge-green">VERDE</span>`;
-  }
-  if (c === "amarillo") {
-    return `<span class="badge badge-yellow">AMARILLO</span>`;
-  }
+  if (c === "verde") return `<span class="badge badge-green">VERDE</span>`;
+  if (c === "amarillo") return `<span class="badge badge-yellow">AMARILLO</span>`;
   return `<span class="badge badge-red">ROJO</span>`;
 }
 
 function pickTypeBadge(type) {
   const t = String(type || "").toLowerCase();
 
-  if (t === "solido") {
-    return `<span class="type-pill type-solido">Sólido</span>`;
-  }
-  if (t === "medio") {
-    return `<span class="type-pill type-medio">Medio</span>`;
-  }
-  if (t === "agresivo") {
-    return `<span class="type-pill type-agresivo">Agresivo</span>`;
-  }
+  if (t === "solido") return `<span class="type-pill type-solido">Sólido</span>`;
+  if (t === "medio") return `<span class="type-pill type-medio">Medio</span>`;
+  if (t === "agresivo") return `<span class="type-pill type-agresivo">Agresivo</span>`;
   return `<span class="type-pill">Pick</span>`;
 }
 
 function marketBadge(marketGroup, pickText) {
   const market = String(marketGroup || "").toLowerCase();
+  const pick = String(pickText || "").toLowerCase();
 
-  if (market === "winner") {
-    return `<span class="type-pill type-medio">Ganador</span>`;
-  }
-  if (market === "over_2_5") {
-    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
-  }
-  if (market === "btts_yes") {
-    return `<span class="type-pill type-solido">Ambos marcan</span>`;
-  }
+  if (market === "winner") return `<span class="type-pill type-medio">Ganador</span>`;
+  if (market === "over_2_5") return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
+  if (market === "btts_yes") return `<span class="type-pill type-solido">Ambos marcan</span>`;
 
-  if (String(pickText || "").toLowerCase().includes("ambos marcan")) {
-    return `<span class="type-pill type-solido">Ambos marcan</span>`;
-  }
-  if (String(pickText || "").toLowerCase().includes("2.5")) {
-    return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
-  }
+  if (pick.includes("ambos marcan")) return `<span class="type-pill type-solido">Ambos marcan</span>`;
+  if (pick.includes("2.5")) return `<span class="type-pill type-agresivo">Más de 2.5</span>`;
   return `<span class="type-pill type-medio">Mercado</span>`;
+}
+
+function sourceBadge(sourceType) {
+  const source = String(sourceType || "").toLowerCase();
+
+  if (source === "real_odds") {
+    return `<span class="source-pill source-real">Odds reales</span>`;
+  }
+
+  if (source === "model_fallback") {
+    return `<span class="source-pill source-model">IA fallback</span>`;
+  }
+
+  return `<span class="source-pill source-model">Modelo</span>`;
 }
 
 function getBestOdds(picks) {
@@ -72,6 +67,11 @@ function getHighConfidenceCount(picks) {
   return picks.filter(p => String(p.confidence || "").toLowerCase() === "verde").length;
 }
 
+function getRealOddsCount(picks) {
+  if (!Array.isArray(picks)) return 0;
+  return picks.filter(p => String(p.source_type || "").toLowerCase() === "real_odds").length;
+}
+
 function formatCount(value) {
   return Number.isFinite(Number(value)) ? String(value) : "0";
 }
@@ -82,7 +82,7 @@ function loadingView() {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
+        <p>Pronósticos deportivos con IA. Picks diarios con análisis inteligente, cuotas reales cuando existan y fallback del modelo cuando la API no traiga odds útiles.</p>
       </div>
       <button class="refresh-btn" disabled>Cargando...</button>
     </section>
@@ -91,7 +91,7 @@ function loadingView() {
       <div class="spinner"></div>
       <div>
         <h3>Consultando backend</h3>
-        <p>Buscando los mejores mercados entre ganador, más de 2.5 goles y ambos marcan.</p>
+        <p>Analizando ganador, más de 2.5 goles y ambos marcan.</p>
       </div>
     </section>
   `;
@@ -103,7 +103,7 @@ function errorView(message) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
+        <p>Pronósticos deportivos con IA. Picks diarios con análisis inteligente, cuotas reales cuando existan y fallback del modelo cuando la API no traiga odds útiles.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -123,7 +123,7 @@ function emptyView(data) {
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.</p>
+        <p>Pronósticos deportivos con IA. Picks diarios con análisis inteligente, cuotas reales cuando existan y fallback del modelo cuando la API no traiga odds útiles.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -141,11 +141,15 @@ function emptyView(data) {
         <span class="summary-label">Confianza alta</span>
         <strong class="summary-value">0</strong>
       </div>
+      <div class="summary-card">
+        <span class="summary-label">Odds reales</span>
+        <strong class="summary-value">0</strong>
+      </div>
     </section>
 
     <section class="status-card">
       <div>
-        <h3>No hay picks válidos ahora mismo</h3>
+        <h3>No hay picks disponibles ahora mismo</h3>
         <p><strong>Fecha:</strong> ${escapeHtml(data.date || "-")}</p>
         <p><strong>Generado a las:</strong> ${escapeHtml(data.generated_at || "-")}</p>
         <p><strong>Fuente:</strong> ${escapeHtml(data.source || "-")}</p>
@@ -156,6 +160,8 @@ function emptyView(data) {
 }
 
 function renderPickCard(pick) {
+  const isFallback = String(pick.source_type || "").toLowerCase() === "model_fallback";
+
   return `
     <article class="pick-card">
       <div class="pick-top">
@@ -173,6 +179,7 @@ function renderPickCard(pick) {
         ${pickTypeBadge(pick.type)}
         ${marketBadge(pick.market_group, pick.pick)}
         ${confidenceBadge(pick.confidence)}
+        ${sourceBadge(pick.source_type)}
       </div>
 
       <div class="pick-main-line">
@@ -208,8 +215,8 @@ function renderPickCard(pick) {
       </div>
 
       <div class="pick-footer">
-        <span><strong>Bookmaker:</strong> ${escapeHtml(pick.bookmaker || "N/D")}</span>
-        <span><strong>Mercado API:</strong> ${escapeHtml(pick.market_name || "-")}</span>
+        <span><strong>Fuente:</strong> ${isFallback ? "Modelo IA" : escapeHtml(pick.bookmaker || "N/D")}</span>
+        <span><strong>Mercado:</strong> ${escapeHtml(pick.market_name || "-")}</span>
       </div>
     </article>
   `;
@@ -225,13 +232,14 @@ function renderData(data) {
 
   const highConfidence = getHighConfidenceCount(picks);
   const bestOdds = getBestOdds(picks);
+  const realOddsCount = getRealOddsCount(picks);
 
   app.innerHTML = `
     <section class="hero">
       <div>
         <div class="eyebrow">PRONÓSTICOS DIARIOS</div>
         <h1>Top Pronósticos Diarios</h1>
-        <p>Pronósticos deportivos con IA. El sistema elige entre ganador, más de 2.5 goles y ambos marcan para encontrar valor real.</p>
+        <p>Pronósticos deportivos con IA. El sistema combina API-Football, análisis de forma reciente y fallback del modelo para no quedarse vacío.</p>
       </div>
       <button class="refresh-btn" onclick="loadPicks(true)">Actualizar picks</button>
     </section>
@@ -255,10 +263,14 @@ function renderData(data) {
         <span class="summary-label">Confianza alta</span>
         <strong class="summary-value">${escapeHtml(highConfidence)}</strong>
       </div>
+      <div class="summary-card">
+        <span class="summary-label">Odds reales</span>
+        <strong class="summary-value">${escapeHtml(realOddsCount)}</strong>
+      </div>
     </section>
 
     <section class="status-ok">
-      Picks actualizados correctamente. El sistema analiza varios mercados y prioriza oportunidades con valor real.
+      Picks actualizados correctamente. Cuando la API no devuelve odds válidas, el sistema muestra recomendaciones del modelo sobre partidos reales detectados.
     </section>
 
     <section class="cards-grid">
