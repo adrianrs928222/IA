@@ -1,20 +1,23 @@
 const BASE_URL = "https://funcional-s4vd.onrender.com";
 const PICKS_URL = `${BASE_URL}/api/picks`;
 const HISTORY_URL = `${BASE_URL}/api/history`;
-const CACHE_KEY = "top-picks-pro-cache-v2";
+const CACHE_KEY = "top-picks-pro-cache-v4";
 
 const app = document.getElementById("app");
 
 let ALL_PICKS = [];
+let CURRENT_DATA = {};
+let CURRENT_HISTORY = { days: [] };
+
 let FILTERS = {
   league: "",
   confidence: "",
   type: ""
 };
 
-/* =========================
+/* =========================================================
    HELPERS
-========================= */
+========================================================= */
 
 function esc(str) {
   return String(str ?? "")
@@ -64,6 +67,7 @@ function readCache() {
 function normalizeData(data) {
   const d = obj(data);
   d.picks = arr(d.picks);
+  d.combo_of_day = obj(d.combo_of_day);
   return d;
 }
 
@@ -73,16 +77,16 @@ function normalizeHistory(history) {
   return h;
 }
 
-/* =========================
-   BADGES
-========================= */
+/* =========================================================
+   BADGES / LABELS
+========================================================= */
 
 function confidenceBadge(conf) {
   const value = n(conf);
 
-  if (value >= 80) return `<span class="b green">ALTA</span>`;
-  if (value >= 70) return `<span class="b yellow">MEDIA</span>`;
-  return `<span class="b red">BAJA</span>`;
+  if (value >= 84) return `<span class="b green">TOP</span>`;
+  if (value >= 76) return `<span class="b yellow">MEDIA</span>`;
+  return `<span class="b red">RISK</span>`;
 }
 
 function resultBadge(status) {
@@ -98,6 +102,13 @@ function typeBadge(type) {
   return `<span class="t">Pick</span>`;
 }
 
+function oddsBandBadge(band) {
+  if (band === "normal") return `<span class="t">Cuota normal</span>`;
+  if (band === "media") return `<span class="t">Cuota media</span>`;
+  if (band === "alta") return `<span class="t">Cuota alta</span>`;
+  return "";
+}
+
 function readablePickType(type) {
   if (type === "winner") return "Ganador";
   if (type === "btts_yes") return "Ambos marcan";
@@ -105,17 +116,17 @@ function readablePickType(type) {
   return "Pick";
 }
 
-/* =========================
-   SORT / FILTER
-========================= */
+/* =========================================================
+   FILTER / SORT
+========================================================= */
 
 function sortPicks(picks) {
   return [...picks].sort((a, b) => {
     const byConfidence = n(b.confidence) - n(a.confidence);
     if (byConfidence !== 0) return byConfidence;
 
-    const byLeague = String(a.league || "").localeCompare(String(b.league || ""));
-    if (byLeague !== 0) return byLeague;
+    const byOdds = n(b.odds_estimate) - n(a.odds_estimate);
+    if (byOdds !== 0) return byOdds;
 
     return String(a.match || "").localeCompare(String(b.match || ""));
   });
@@ -124,16 +135,16 @@ function sortPicks(picks) {
 function applyFilters(picks) {
   return picks.filter((p) => {
     if (FILTERS.league && p.league !== FILTERS.league) return false;
-    if (FILTERS.confidence === "high" && n(p.confidence) < 80) return false;
-    if (FILTERS.confidence === "mid" && n(p.confidence) < 70) return false;
+    if (FILTERS.confidence === "high" && n(p.confidence) < 84) return false;
+    if (FILTERS.confidence === "mid" && n(p.confidence) < 76) return false;
     if (FILTERS.type && p.pick_type !== FILTERS.type) return false;
     return true;
   });
 }
 
-/* =========================
-   UI PIECES
-========================= */
+/* =========================================================
+   UI BLOCKS
+========================================================= */
 
 function renderFilters(leagues) {
   return `
@@ -171,23 +182,80 @@ function renderMeta(data, filteredCount, totalCount) {
       Mostrando ${filteredCount} de ${totalCount}
       ${data.generated_at ? ` · Actualizado: ${esc(data.generated_at)}` : ""}
       ${data.cache_day ? ` · Día: ${esc(data.cache_day)}` : ""}
+      ${data.lookahead_hours ? ` · Ventana: ${esc(data.lookahead_hours)}h` : ""}
     </div>
   `;
 }
 
-function renderMarketSnapshot(snapshot) {
-  const s = obj(snapshot);
-  const items = [];
+function renderSummaryRow(label, value) {
+  return `
+    <div class="stats">
+      <span><strong>${esc(label)}:</strong> ${esc(value)}</span>
+    </div>
+  `;
+}
 
-  if (s.home_odds != null) items.push(`<span>1: ${esc(s.home_odds)}</span>`);
-  if (s.draw_odds != null) items.push(`<span>X: ${esc(s.draw_odds)}</span>`);
-  if (s.away_odds != null) items.push(`<span>2: ${esc(s.away_odds)}</span>`);
-  if (s.btts_yes != null) items.push(`<span>BTTS: ${esc(s.btts_yes)}</span>`);
-  if (s.over_2_5 != null) items.push(`<span>+2.5: ${esc(s.over_2_5)}</span>`);
+/* =========================================================
+   COMBO OF DAY
+========================================================= */
 
-  if (!items.length) return "";
+function renderComboPick(p) {
+  return `
+    <div class="history-row">
+      <div class="history-row-left">
+        <strong>${esc(p.match || "")}</strong>
+        <span>${esc(p.pick || readablePickType(p.pick_type))}</span>
+        <small>${esc(p.league || "")} · Confianza ${esc(p.confidence)} · Cuota est. ${esc(p.odds_estimate)}</small>
+      </div>
+      <div class="history-row-right">
+        ${oddsBandBadge(p.odds_band)}
+      </div>
+    </div>
+  `;
+}
 
-  return `<div class="stats">${items.join(" ")}</div>`;
+function renderCombo(combo) {
+  const c = obj(combo);
+  const picks = arr(c.picks);
+
+  if (!picks.length) return "";
+
+  return `
+    <section class="history">
+      <h2>Combi del día</h2>
+
+      <div class="day">
+        <div class="day-stats">
+          <span>Picks: ${esc(c.size)}</span>
+          <span>Cuota est.: ${esc(c.estimated_total_odds)}</span>
+          <span>Confianza: ${esc(c.confidence)}</span>
+        </div>
+
+        <div class="history-list">
+          ${picks.map(renderComboPick).join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+/* =========================================================
+   PICK CARD
+========================================================= */
+
+function renderCardsBlock(cards, homeTeam, awayTeam) {
+  const c = obj(cards);
+  const homeCards = c[homeTeam];
+  const awayCards = c[awayTeam];
+
+  if (homeCards == null && awayCards == null) return "";
+
+  return `
+    <div class="stats">
+      <span>🟨 ${esc(homeTeam)}: ${esc(homeCards ?? "-")}</span>
+      <span>🟨 ${esc(awayTeam)}: ${esc(awayCards ?? "-")}</span>
+    </div>
+  `;
 }
 
 function renderPickCard(p) {
@@ -204,12 +272,17 @@ function renderPickCard(p) {
       <div class="tags">
         ${typeBadge(p.pick_type)}
         ${confidenceBadge(p.confidence)}
+        ${oddsBandBadge(p.odds_band)}
         ${resultBadge(p.status)}
       </div>
 
       <div class="pick">${esc(p.pick || "")}</div>
 
-      ${renderMarketSnapshot(p.market_snapshot)}
+      ${renderSummaryRow("Ganador", p.pick_winner || "-")}
+      ${renderSummaryRow("BTTS", p.btts || "-")}
+      ${renderSummaryRow("Over 2.5", p.over_2_5 || "-")}
+      ${renderSummaryRow("Cuota estimada", p.odds_estimate || "-")}
+      ${renderCardsBlock(p.cards, p.home_team, p.away_team)}
 
       ${p.score_line ? `<div class="score">Resultado: ${esc(p.score_line)}</div>` : ""}
 
@@ -218,19 +291,23 @@ function renderPickCard(p) {
   `;
 }
 
-/* =========================
-   HISTORIAL PRO
-========================= */
+/* =========================================================
+   HISTORY PRO
+========================================================= */
 
 function renderHistoryRow(p) {
-  const market = p.pick || readablePickType(p.pick_type);
+  const pickText = p.pick || readablePickType(p.pick_type);
 
   return `
     <div class="history-row">
       <div class="history-row-left">
         <strong>${esc(p.match || "")}</strong>
-        <span>${esc(market)}</span>
-        ${p.score_line ? `<small>Marcador: ${esc(p.score_line)}</small>` : ""}
+        <span>${esc(pickText)}</span>
+        <small>
+          ${esc(p.league || "")}
+          ${p.score_line ? ` · Marcador: ${esc(p.score_line)}` : ""}
+          ${p.odds_estimate ? ` · Cuota est.: ${esc(p.odds_estimate)}` : ""}
+        </small>
       </div>
 
       <div class="history-row-right">
@@ -279,15 +356,19 @@ function renderHistory(history) {
   `;
 }
 
-/* =========================
+/* =========================================================
    MAIN RENDER
-========================= */
+========================================================= */
 
 function renderAll(rawData, rawHistory) {
   const data = normalizeData(rawData);
   const history = normalizeHistory(rawHistory);
 
+  CURRENT_DATA = data;
+  CURRENT_HISTORY = history;
+
   ALL_PICKS = sortPicks(data.picks);
+
   const leagues = [...new Set(ALL_PICKS.map(p => p.league).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b));
 
@@ -296,6 +377,7 @@ function renderAll(rawData, rawHistory) {
   app.innerHTML = `
     ${renderFilters(leagues)}
     ${renderMeta(data, filtered.length, ALL_PICKS.length)}
+    ${renderCombo(data.combo_of_day)}
 
     <div class="grid">
       ${filtered.length
@@ -307,12 +389,12 @@ function renderAll(rawData, rawHistory) {
     ${renderHistory(history)}
   `;
 
-  bindEvents(data, history);
+  bindEvents();
 }
 
-/* =========================
+/* =========================================================
    EVENTS
-========================= */
+========================================================= */
 
 function resetFilters() {
   FILTERS = {
@@ -322,7 +404,7 @@ function resetFilters() {
   };
 }
 
-function bindEvents(data, history) {
+function bindEvents() {
   const leagueEl = document.getElementById("f-league");
   const confidenceEl = document.getElementById("f-confidence");
   const typeEl = document.getElementById("f-type");
@@ -331,21 +413,21 @@ function bindEvents(data, history) {
   if (leagueEl) {
     leagueEl.onchange = (e) => {
       FILTERS.league = e.target.value;
-      renderAll(data, history);
+      renderAll(CURRENT_DATA, CURRENT_HISTORY);
     };
   }
 
   if (confidenceEl) {
     confidenceEl.onchange = (e) => {
       FILTERS.confidence = e.target.value;
-      renderAll(data, history);
+      renderAll(CURRENT_DATA, CURRENT_HISTORY);
     };
   }
 
   if (typeEl) {
     typeEl.onchange = (e) => {
       FILTERS.type = e.target.value;
-      renderAll(data, history);
+      renderAll(CURRENT_DATA, CURRENT_HISTORY);
     };
   }
 
@@ -357,9 +439,9 @@ function bindEvents(data, history) {
   }
 }
 
-/* =========================
+/* =========================================================
    LOAD
-========================= */
+========================================================= */
 
 async function fetchJson(url) {
   const res = await fetch(url);
