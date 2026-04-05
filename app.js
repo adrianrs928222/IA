@@ -1,17 +1,15 @@
 const BASE_URL = "https://funcional-s4vd.onrender.com";
 const PICKS_URL = `${BASE_URL}/api/picks`;
 const HISTORY_URL = `${BASE_URL}/api/history`;
-const CACHE_KEY = "top-picks-pro-cache-v4";
+const CACHE_KEY = "top-picks-pro-cache-v5";
 
 const app = document.getElementById("app");
 
-let ALL_PICKS = [];
 let CURRENT_DATA = {};
 let CURRENT_HISTORY = { days: [] };
 
 let FILTERS = {
   league: "",
-  confidence: "",
   type: ""
 };
 
@@ -68,6 +66,10 @@ function normalizeData(data) {
   const d = obj(data);
   d.picks = arr(d.picks);
   d.combo_of_day = obj(d.combo_of_day);
+  d.groups = obj(d.groups);
+  d.groups.normal = arr(d.groups.normal);
+  d.groups.media = arr(d.groups.media);
+  d.groups.alta = arr(d.groups.alta);
   return d;
 }
 
@@ -78,7 +80,7 @@ function normalizeHistory(history) {
 }
 
 /* =========================================================
-   BADGES / LABELS
+   BADGES
 ========================================================= */
 
 function confidenceBadge(conf) {
@@ -103,9 +105,9 @@ function typeBadge(type) {
 }
 
 function oddsBandBadge(band) {
-  if (band === "normal") return `<span class="t">Cuota normal</span>`;
-  if (band === "media") return `<span class="t">Cuota media</span>`;
-  if (band === "alta") return `<span class="t">Cuota alta</span>`;
+  if (band === "normal") return `<span class="t">Normal</span>`;
+  if (band === "media") return `<span class="t">Media</span>`;
+  if (band === "alta") return `<span class="t">Alta</span>`;
   return "";
 }
 
@@ -117,11 +119,25 @@ function readablePickType(type) {
 }
 
 /* =========================================================
-   FILTER / SORT
+   FILTERS
+========================================================= */
+
+function pickMatchesFilters(p) {
+  if (FILTERS.league && p.league !== FILTERS.league) return false;
+  if (FILTERS.type && p.pick_type !== FILTERS.type) return false;
+  return true;
+}
+
+function applyFilters(picks) {
+  return arr(picks).filter(pickMatchesFilters);
+}
+
+/* =========================================================
+   SORT
 ========================================================= */
 
 function sortPicks(picks) {
-  return [...picks].sort((a, b) => {
+  return [...arr(picks)].sort((a, b) => {
     const byConfidence = n(b.confidence) - n(a.confidence);
     if (byConfidence !== 0) return byConfidence;
 
@@ -129,16 +145,6 @@ function sortPicks(picks) {
     if (byOdds !== 0) return byOdds;
 
     return String(a.match || "").localeCompare(String(b.match || ""));
-  });
-}
-
-function applyFilters(picks) {
-  return picks.filter((p) => {
-    if (FILTERS.league && p.league !== FILTERS.league) return false;
-    if (FILTERS.confidence === "high" && n(p.confidence) < 84) return false;
-    if (FILTERS.confidence === "mid" && n(p.confidence) < 76) return false;
-    if (FILTERS.type && p.pick_type !== FILTERS.type) return false;
-    return true;
   });
 }
 
@@ -158,12 +164,6 @@ function renderFilters(leagues) {
         `).join("")}
       </select>
 
-      <select id="f-confidence">
-        <option value="">Confianza</option>
-        <option value="high" ${FILTERS.confidence === "high" ? "selected" : ""}>Alta</option>
-        <option value="mid" ${FILTERS.confidence === "mid" ? "selected" : ""}>Media+</option>
-      </select>
-
       <select id="f-type">
         <option value="">Mercado</option>
         <option value="winner" ${FILTERS.type === "winner" ? "selected" : ""}>Ganador</option>
@@ -176,10 +176,10 @@ function renderFilters(leagues) {
   `;
 }
 
-function renderMeta(data, filteredCount, totalCount) {
+function renderMeta(data) {
   return `
     <div class="meta">
-      Mostrando ${filteredCount} de ${totalCount}
+      Picks: ${esc(data.count ?? 0)}
       ${data.generated_at ? ` · Actualizado: ${esc(data.generated_at)}` : ""}
       ${data.cache_day ? ` · Día: ${esc(data.cache_day)}` : ""}
       ${data.lookahead_hours ? ` · Ventana: ${esc(data.lookahead_hours)}h` : ""}
@@ -196,7 +196,7 @@ function renderSummaryRow(label, value) {
 }
 
 /* =========================================================
-   COMBO OF DAY
+   COMBO
 ========================================================= */
 
 function renderComboPick(p) {
@@ -292,7 +292,27 @@ function renderPickCard(p) {
 }
 
 /* =========================================================
-   HISTORY PRO
+   GROUPS
+========================================================= */
+
+function renderPickSection(title, picks, emptyText = "No hay picks en esta categoría.") {
+  const filtered = sortPicks(applyFilters(picks));
+
+  return `
+    <section class="history">
+      <h2>${esc(title)}</h2>
+      <div class="grid">
+        ${filtered.length
+          ? filtered.map(renderPickCard).join("")
+          : `<div class="empty-state">${esc(emptyText)}</div>`
+        }
+      </div>
+    </section>
+  `;
+}
+
+/* =========================================================
+   HISTORY
 ========================================================= */
 
 function renderHistoryRow(p) {
@@ -367,24 +387,18 @@ function renderAll(rawData, rawHistory) {
   CURRENT_DATA = data;
   CURRENT_HISTORY = history;
 
-  ALL_PICKS = sortPicks(data.picks);
-
-  const leagues = [...new Set(ALL_PICKS.map(p => p.league).filter(Boolean))]
+  const allPicks = sortPicks(data.picks);
+  const leagues = [...new Set(allPicks.map(p => p.league).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b));
-
-  const filtered = applyFilters(ALL_PICKS);
 
   app.innerHTML = `
     ${renderFilters(leagues)}
-    ${renderMeta(data, filtered.length, ALL_PICKS.length)}
+    ${renderMeta(data)}
     ${renderCombo(data.combo_of_day)}
 
-    <div class="grid">
-      ${filtered.length
-        ? filtered.map(renderPickCard).join("")
-        : `<div class="empty-state">No hay picks con esos filtros.</div>`
-      }
-    </div>
+    ${renderPickSection("Picks normales", data.groups.normal)}
+    ${renderPickSection("Picks medios", data.groups.media)}
+    ${renderPickSection("Picks altos", data.groups.alta)}
 
     ${renderHistory(history)}
   `;
@@ -399,27 +413,18 @@ function renderAll(rawData, rawHistory) {
 function resetFilters() {
   FILTERS = {
     league: "",
-    confidence: "",
     type: ""
   };
 }
 
 function bindEvents() {
   const leagueEl = document.getElementById("f-league");
-  const confidenceEl = document.getElementById("f-confidence");
   const typeEl = document.getElementById("f-type");
   const refreshBtn = document.getElementById("btn-refresh");
 
   if (leagueEl) {
     leagueEl.onchange = (e) => {
       FILTERS.league = e.target.value;
-      renderAll(CURRENT_DATA, CURRENT_HISTORY);
-    };
-  }
-
-  if (confidenceEl) {
-    confidenceEl.onchange = (e) => {
-      FILTERS.confidence = e.target.value;
       renderAll(CURRENT_DATA, CURRENT_HISTORY);
     };
   }
@@ -443,10 +448,17 @@ function bindEvents() {
    LOAD
 ========================================================= */
 
-async function fetchJson(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+async function fetchWithTimeout(url, timeout = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function renderLoading() {
@@ -454,7 +466,11 @@ function renderLoading() {
 }
 
 function renderError() {
-  app.innerHTML = `<div class="error-box">Error cargando datos.</div>`;
+  app.innerHTML = `
+    <div class="error-box">
+      ⚠️ Servidor despertando o backend sin respuesta. Vuelve a cargar en unos segundos.
+    </div>
+  `;
 }
 
 async function load(force = false) {
@@ -464,8 +480,8 @@ async function load(force = false) {
     const picksUrl = force ? `${PICKS_URL}?force_refresh=true` : PICKS_URL;
 
     const [data, history] = await Promise.all([
-      fetchJson(picksUrl),
-      fetchJson(HISTORY_URL).catch(() => ({ days: [] }))
+      fetchWithTimeout(picksUrl, 15000),
+      fetchWithTimeout(HISTORY_URL, 15000).catch(() => ({ days: [] }))
     ]);
 
     saveCache(data, history);
