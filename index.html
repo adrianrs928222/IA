@@ -4,18 +4,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Top Pronósticos Diarios</title>
-  <meta name="description" content="Pronósticos deportivos con IA. Picks diarios con análisis IA, cuotas reales, value y estrategia tipster.">
-  <meta name="theme-color" content="#0f1115">
+  <title>Top Picks del Día | Pronósticos deportivos con IA</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta name="description" content="Picks deportivos del día con IA. Solo partidos de hoy, cuotas medias y altas, análisis tipster y valor real en mercados como ganador, más de 2.5 goles y ambos marcan.">
+  <meta name="keywords" content="pronósticos deportivos, picks del día, apuestas fútbol, IA apuestas, tipster, cuotas altas, análisis fútbol">
+  <meta name="author" content="Top Picks IA">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Top Picks del Día">
+  <meta property="og:description" content="Pronósticos deportivos con IA. Picks diarios reales, solo partidos de hoy.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://via.placeholder.com/1200x630.png?text=Top+Picks+IA">
+
+  <!-- Theme -->
+  <meta name="theme-color" content="#08111f">
+
+  <!-- Fuente -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
+  <!-- CSS -->
   <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    /* Fuente fallback si falla Google */
+    body {
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+  </style>
 </head>
+
 <body>
-  <div id="app"></div>
+
+  <noscript>
+    <div style="padding:20px;color:white;background:#111;">
+      Necesitas activar JavaScript para ver los picks del día.
+    </div>
+  </noscript>
+
+  <div id="app">
+    <!-- Render dinámico -->
+  </div>
+
+  <!-- Script principal -->
   <script src="app.js"></script>
+
 </body>
 </html>
