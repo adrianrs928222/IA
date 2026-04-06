@@ -1,7 +1,7 @@
 const BASE_URL = "https://funcional-s4vd.onrender.com";
 const PICKS_URL = `${BASE_URL}/api/picks`;
 const HISTORY_URL = `${BASE_URL}/api/history`;
-const CACHE_KEY = "top-picks-pro-cache-v100";
+const CACHE_KEY = "top-picks-pro-cache-v200";
 
 const app = document.getElementById("app");
 
@@ -110,6 +110,12 @@ function oddsBandBadge(band) {
   if (band === "normal") return `<span class="t">Normal</span>`;
   if (band === "media") return `<span class="t">Media</span>`;
   if (band === "alta") return `<span class="t">Alta</span>`;
+  return "";
+}
+
+function sourceBadge(source) {
+  if (source === "api_real") return `<span class="t">API real</span>`;
+  if (source === "fallback_local") return `<span class="t">Fallback</span>`;
   return "";
 }
 
@@ -227,7 +233,11 @@ function renderComboPick(p) {
       <div class="history-row-left">
         <strong>${esc(p.match || "")}</strong>
         <span>${esc(p.pick || readablePickType(p.pick_type))}</span>
-        <small>${esc(p.league || "")} · Confianza ${esc(p.confidence)} · Cuota est. ${esc(p.odds_estimate)}</small>
+        <small>
+          ${esc(p.league || "")}
+          · Confianza ${esc(p.confidence)}
+          · Cuota est. ${esc(p.odds_estimate)}
+        </small>
       </div>
       <div class="history-row-right">
         ${oddsBandBadge(p.odds_band)}
@@ -295,6 +305,7 @@ function renderPickCard(p) {
         ${typeBadge(p.pick_type)}
         ${confidenceBadge(p.confidence)}
         ${oddsBandBadge(p.odds_band)}
+        ${sourceBadge(p.source)}
         ${resultBadge(p.status)}
       </div>
 
