@@ -1,7 +1,7 @@
 const BASE_URL = "https://funcional-s4vd.onrender.com";
 const PICKS_URL = `${BASE_URL}/api/picks`;
 const HISTORY_URL = `${BASE_URL}/api/history`;
-const CACHE_KEY = "top-picks-pro-cache-v5";
+const CACHE_KEY = "top-picks-pro-cache-v100";
 
 const app = document.getElementById("app");
 
@@ -70,6 +70,8 @@ function normalizeData(data) {
   d.groups.normal = arr(d.groups.normal);
   d.groups.media = arr(d.groups.media);
   d.groups.alta = arr(d.groups.alta);
+  d.error = !!d.error;
+  d.message = d.message || "";
   return d;
 }
 
@@ -185,6 +187,26 @@ function renderMeta(data) {
       ${data.lookahead_hours ? ` · Ventana: ${esc(data.lookahead_hours)}h` : ""}
     </div>
   `;
+}
+
+function renderBackendMessage(data) {
+  if (data.error && data.message) {
+    return `
+      <div class="error-box">
+        ⚠️ Error backend: ${esc(data.message)}
+      </div>
+    `;
+  }
+
+  if (!arr(data.picks).length) {
+    return `
+      <div class="empty-state">
+        No hay picks disponibles ahora mismo. Prueba a refrescar o revisa <strong>/test-api</strong>.
+      </div>
+    `;
+  }
+
+  return "";
 }
 
 function renderSummaryRow(label, value) {
@@ -394,6 +416,7 @@ function renderAll(rawData, rawHistory) {
   app.innerHTML = `
     ${renderFilters(leagues)}
     ${renderMeta(data)}
+    ${renderBackendMessage(data)}
     ${renderCombo(data.combo_of_day)}
 
     ${renderPickSection("Picks normales", data.groups.normal)}
@@ -465,10 +488,10 @@ function renderLoading() {
   app.innerHTML = `<div class="loading">Cargando picks...</div>`;
 }
 
-function renderError() {
+function renderError(message = "") {
   app.innerHTML = `
     <div class="error-box">
-      ⚠️ Servidor despertando o backend sin respuesta. Vuelve a cargar en unos segundos.
+      ⚠️ Servidor sin respuesta.${message ? ` ${esc(message)}` : ""}
     </div>
   `;
 }
@@ -486,7 +509,7 @@ async function load(force = false) {
 
     saveCache(data, history);
     renderAll(data, history);
-  } catch (_) {
+  } catch (e) {
     const cache = readCache();
 
     if (cache?.data) {
@@ -494,7 +517,7 @@ async function load(force = false) {
       return;
     }
 
-    renderError();
+    renderError(e?.message || "");
   }
 }
 
