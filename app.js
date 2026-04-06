@@ -40,6 +40,7 @@ function createFilters() {
   leagueSelect.innerHTML = `
     <option value="all">Todas las ligas</option>
     <option value="LaLiga">LaLiga</option>
+    <option value="Segunda División">Segunda División</option>
     <option value="Champions League">Champions League</option>
   `;
   leagueSelect.value = state.leagueFilter;
@@ -94,16 +95,16 @@ function filterPicks(picks) {
 
 function pickTypeLabel(type) {
   if (type === "winner") return "Ganador";
-  if (type === "btts_yes") return "BTTS";
-  if (type === "over_2_5") return "Over 2.5";
+  if (type === "btts_yes") return "Ambos marcan";
+  if (type === "over_2_5") return "Más de 2.5";
   return "Pick";
 }
 
 function oddsBandLabel(band) {
-  if (band === "normal") return "Normal";
-  if (band === "media") return "Media";
-  if (band === "alta") return "Alta";
-  return "Normal";
+  if (band === "alta") return "Confianza alta";
+  if (band === "media") return "Confianza media";
+  if (band === "normal") return "Confianza intermedia";
+  return "Confianza intermedia";
 }
 
 function oddsBandClass(band) {
@@ -120,9 +121,15 @@ function statusClass(status) {
 }
 
 function statusLabel(status) {
-  if (status === "won") return "Ganado";
+  if (status === "won") return "Acertado";
   if (status === "lost") return "Perdido";
   return "Pendiente";
+}
+
+function confidenceClass(conf) {
+  if (conf >= 80) return "conf-high";
+  if (conf >= 72) return "conf-medium";
+  return "conf-low";
 }
 
 function createCombo(combo) {
@@ -135,7 +142,7 @@ function createCombo(combo) {
   const meta = el("div", "combo-meta");
   meta.appendChild(badge(`Picks: ${combo.size || combo.picks.length}`));
   meta.appendChild(badge(`Cuota est.: ${combo.estimated_total_odds ?? "-"}`));
-  meta.appendChild(badge(`Confianza: ${combo.confidence ?? "-"}`));
+  meta.appendChild(badge(`Confianza media: ${combo.confidence ?? "-"}%`));
   wrap.appendChild(meta);
 
   const list = el("div", "combo-card-list");
@@ -149,7 +156,7 @@ function createCombo(combo) {
     const sub = el(
       "small",
       "",
-      `${p.pick || "-"} · ${p.league || "-"} · Confianza ${p.confidence ?? "-"} · Cuota est. ${p.odds_estimate ?? "-"}`
+      `${p.pick || "-"} · ${p.league || "-"} · ${p.confidence ?? "-"}% · Cuota ${p.odds_estimate ?? "-"}`
     );
     row.appendChild(sub);
 
@@ -158,6 +165,12 @@ function createCombo(combo) {
 
   wrap.appendChild(list);
   return wrap;
+}
+
+function createConfidenceBadge(confidence) {
+  const span = badge(`${confidence}%`, "confidence-badge");
+  span.classList.add(confidenceClass(confidence));
+  return span;
 }
 
 function createCard(pick, isTop = false) {
@@ -179,13 +192,14 @@ function createCard(pick, isTop = false) {
   card.appendChild(top);
 
   const tags = el("div", "tags");
-  tags.appendChild(badge(pickTypeLabel(pick.pick_type), isTop ? "t pick-type" : "t pick-type"));
+  tags.appendChild(badge(pickTypeLabel(pick.pick_type), "t pick-type"));
 
   if (isTop) {
-    tags.appendChild(badge("TOP", "t top"));
+    tags.appendChild(badge("TOP PICK", "t top"));
   }
 
   tags.appendChild(badge(oddsBandLabel(pick.odds_band), oddsBandClass(pick.odds_band)));
+  tags.appendChild(createConfidenceBadge(pick.confidence || 0));
   tags.appendChild(badge(statusLabel(pick.status), statusClass(pick.status)));
   card.appendChild(tags);
 
@@ -273,11 +287,17 @@ function createHistory(historyData) {
 
       const left = el("div", "history-row-left");
       const strong = el("strong", "", p.match || "-");
-      const span = el("span", "", `${p.pick || "-"} · ${p.league || "-"} · ${p.time_local || "-"}`);
+      const span = el(
+        "span",
+        "",
+        `${p.pick || "-"} · ${p.league || "-"} · ${p.time_local || "-"} · ${p.confidence ?? 0}%`
+      );
+
+      const marker = p.score_line ? ` · Marcador ${p.score_line}` : "";
       const small = el(
         "small",
         "",
-        `Confianza ${p.confidence ?? "-"} · Cuota ${p.odds_estimate ?? "-"} · ${p.source || "-"}`
+        `Cuota ${p.odds_estimate ?? "-"} · ${p.source || "-"}${marker}`
       );
 
       left.appendChild(strong);
@@ -330,9 +350,9 @@ function render() {
   if (!allPicks.length) {
     root.appendChild(createEmpty());
   } else {
-    root.appendChild(createGroupSection("Picks normales", normal, true));
-    root.appendChild(createGroupSection("Picks medios", media));
-    root.appendChild(createGroupSection("Picks altos", alta));
+    root.appendChild(createGroupSection("Confianza intermedia", normal, true));
+    root.appendChild(createGroupSection("Confianza media", media));
+    root.appendChild(createGroupSection("Confianza alta", alta));
   }
 
   root.appendChild(createHistory(history));
@@ -364,7 +384,7 @@ async function loadAll(forceRefresh = false) {
     state.data = picksData;
     state.history = historyData;
   } catch (err) {
-    state.error = "No se pudo cargar la información premium.";
+    state.error = "No se pudo cargar la información.";
     console.error(err);
   } finally {
     state.loading = false;
