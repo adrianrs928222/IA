@@ -3,77 +3,77 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Top Picks Pro</title>
+  <title>Top Picks Pro Premium</title>
 
-  <meta name="description" content="Picks premium de fútbol con combinadas y análisis IA" />
+  <meta name="description" content="Picks premium de fútbol con combinada del día, historial, confianza y análisis tipster." />
   <meta name="theme-color" content="#08182f" />
 
-  <!-- FONT -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet"
   />
 
-  <!-- STYLES -->
   <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
+  <header class="premium-header">
+    <div class="premium-header__bg"></div>
 
-  <!-- 🔝 HEADER PREMIUM -->
-  <header class="header">
-    <div class="header-inner">
+    <div class="premium-header__inner">
+      <div class="premium-brand">
+        <div class="premium-brand__logo">TP</div>
 
-      <div class="logo">
-        <span class="logo-icon">TP</span>
-        <div class="logo-text">
-          <strong>Top Picks</strong>
-          <small>Premium</small>
+        <div class="premium-brand__text">
+          <span class="premium-brand__eyebrow">Top Picks</span>
+          <h1>Pro Premium</h1>
+          <p>Picks inteligentes, confianza real y análisis tipster.</p>
         </div>
       </div>
 
-      <div class="status">
-        <span class="status-pill live">Live</span>
-        <span class="status-pill api">4 APIs</span>
-        <span class="status-pill mode">Pro</span>
+      <div class="premium-header__badges">
+        <span class="premium-chip">⚽ Fútbol</span>
+        <span class="premium-chip">🔥 Combi del día</span>
+        <span class="premium-chip">📊 Historial</span>
+        <span class="premium-chip">💎 Premium</span>
+      </div>
+    </div>
+
+    <div class="premium-stats">
+      <div class="premium-stat-card">
+        <span class="premium-stat-card__label">Cobertura</span>
+        <strong>LaLiga · Segunda · Champions</strong>
       </div>
 
+      <div class="premium-stat-card">
+        <span class="premium-stat-card__label">Modo</span>
+        <strong>Tipster Pro</strong>
+      </div>
+
+      <div class="premium-stat-card">
+        <span class="premium-stat-card__label">Actualización</span>
+        <strong>Automática</strong>
+      </div>
+
+      <div class="premium-stat-card">
+        <span class="premium-stat-card__label">Confianza</span>
+        <strong>0% – 100%</strong>
+      </div>
     </div>
   </header>
 
-  <!-- 🧠 HERO -->
-  <section class="hero">
-    <div class="hero-content">
+  <main class="premium-main">
+    <div id="app"></div>
+  </main>
 
-      <h1>Top Picks Pro ⚽</h1>
-      <p>
-        Picks reales, combinadas del día y análisis IA en tiempo real.
-      </p>
-
-      <div class="hero-tags">
-        <span>🏆 Combi del día</span>
-        <span>📊 Historial</span>
-        <span>🔥 Picks top</span>
-        <span>⚡ Actualización automática</span>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- 📦 MAIN APP -->
-  <main id="app"></main>
-
-  <!-- 🔻 FOOTER -->
-  <footer class="footer">
-    <div class="footer-inner">
-      <span>⚡ Sistema premium · Multi API · Tiempo real</span>
+  <footer class="premium-footer">
+    <div class="premium-footer__inner">
+      <span>Top Picks Pro Premium</span>
+      <span>Europa/Madrid</span>
     </div>
   </footer>
 
-  <!-- SCRIPT -->
   <script src="app.js"></script>
-
 </body>
 </html>
