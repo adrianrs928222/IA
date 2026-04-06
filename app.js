@@ -100,18 +100,16 @@ function pickTypeLabel(type) {
   return "Pick";
 }
 
-function oddsBandLabel(band) {
-  if (band === "alta") return "Confianza alta";
-  if (band === "media") return "Confianza media";
-  if (band === "normal") return "Confianza intermedia";
+function oddsBandLabel(confidence) {
+  if (confidence >= 80) return "Confianza alta";
+  if (confidence >= 72) return "Confianza media";
   return "Confianza intermedia";
 }
 
-function oddsBandClass(band) {
-  if (band === "normal") return "b normal green";
-  if (band === "media") return "b media yellow";
-  if (band === "alta") return "b alta red";
-  return "b normal green";
+function oddsBandClass(confidence) {
+  if (confidence >= 80) return "b alta green";
+  if (confidence >= 72) return "b media yellow";
+  return "b intermedia red";
 }
 
 function statusClass(status) {
@@ -198,7 +196,7 @@ function createCard(pick, isTop = false) {
     tags.appendChild(badge("TOP PICK", "t top"));
   }
 
-  tags.appendChild(badge(oddsBandLabel(pick.odds_band), oddsBandClass(pick.odds_band)));
+  tags.appendChild(badge(oddsBandLabel(pick.confidence), oddsBandClass(pick.confidence)));
   tags.appendChild(createConfidenceBadge(pick.confidence || 0));
   tags.appendChild(badge(statusLabel(pick.status), statusClass(pick.status)));
   card.appendChild(tags);
@@ -342,17 +340,18 @@ function render() {
   const combo = createCombo(data.combo_of_day);
   if (combo) root.appendChild(combo);
 
-  const allPicks = filterPicks(data.picks || []);
-  const normal = filterPicks(data.groups?.normal || []);
-  const media = filterPicks(data.groups?.media || []);
   const alta = filterPicks(data.groups?.alta || []);
+  const media = filterPicks(data.groups?.media || []);
+  const intermedia = filterPicks(data.groups?.intermedia || []);
+
+  const allPicks = [...alta, ...media, ...intermedia];
 
   if (!allPicks.length) {
     root.appendChild(createEmpty());
   } else {
-    root.appendChild(createGroupSection("Confianza intermedia", normal, true));
+    root.appendChild(createGroupSection("Confianza alta", alta, true));
     root.appendChild(createGroupSection("Confianza media", media));
-    root.appendChild(createGroupSection("Confianza alta", alta));
+    root.appendChild(createGroupSection("Confianza intermedia", intermedia));
   }
 
   root.appendChild(createHistory(history));
