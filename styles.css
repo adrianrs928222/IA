@@ -1,21 +1,23 @@
 :root {
-  --bg-1: #06122b;
-  --bg-2: #0b1d45;
-  --bg-3: #10285d;
-  --card: rgba(18, 35, 78, 0.72);
-  --card-strong: rgba(21, 42, 94, 0.9);
+  --bg-1: #061226;
+  --bg-2: #0a1b3f;
+  --bg-3: #10285a;
+  --surface: rgba(14, 28, 66, 0.78);
+  --surface-2: rgba(20, 38, 87, 0.9);
+  --surface-3: rgba(26, 49, 108, 0.92);
   --stroke: rgba(255, 255, 255, 0.08);
   --stroke-strong: rgba(255, 255, 255, 0.16);
-  --text: #f4f8ff;
-  --text-soft: #b7c6e6;
-  --text-dim: #8fa3cc;
-  --primary: #65c8ff;
-  --primary-2: #8a7dff;
-  --success: #2dd4bf;
-  --warning: #fbbf24;
-  --danger: #fb7185;
-  --shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 14px 34px rgba(0, 0, 0, 0.24);
+  --text: #f6f9ff;
+  --text-soft: #bfd0f3;
+  --text-dim: #8fa6d6;
+  --primary: #69cbff;
+  --primary-2: #8a7bff;
+  --success: #19d3a2;
+  --warning: #f7c948;
+  --danger: #ff6f91;
+  --shadow-xl: 0 26px 70px rgba(0, 0, 0, 0.38);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 12px 28px rgba(0, 0, 0, 0.2);
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
@@ -36,9 +38,9 @@ body {
   color: var(--text);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(101, 200, 255, 0.14), transparent 24%),
-    radial-gradient(circle at top right, rgba(138, 125, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 48%, var(--bg-3) 100%);
+    radial-gradient(circle at top left, rgba(105, 203, 255, 0.14), transparent 22%),
+    radial-gradient(circle at top right, rgba(138, 123, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 45%, var(--bg-3) 100%);
   background-attachment: fixed;
   overflow-x: hidden;
 }
@@ -47,85 +49,79 @@ body::before,
 body::after {
   content: "";
   position: fixed;
-  inset: auto;
-  width: 340px;
-  height: 340px;
+  width: 320px;
+  height: 320px;
   border-radius: 999px;
   filter: blur(90px);
-  pointer-events: none;
   z-index: 0;
-  opacity: 0.32;
-  animation: floatGlow 14s ease-in-out infinite;
+  pointer-events: none;
+  opacity: 0.28;
+  animation: floatGlow 12s ease-in-out infinite;
 }
 
 body::before {
   left: -100px;
-  top: 80px;
-  background: rgba(101, 200, 255, 0.38);
+  top: 70px;
+  background: rgba(105, 203, 255, 0.45);
 }
 
 body::after {
   right: -80px;
-  bottom: 60px;
-  background: rgba(138, 125, 255, 0.28);
-  animation-delay: -7s;
+  bottom: 50px;
+  background: rgba(138, 123, 255, 0.34);
+  animation-delay: -6s;
 }
 
 #app {
   position: relative;
   z-index: 1;
-  max-width: 1280px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 26px 18px 80px;
+  padding: 22px 16px 80px;
 }
 
-.loading,
-.error-box,
-.empty-state,
-.meta,
-.filters,
-.history,
-.card {
-  animation: fadeUp 0.5s ease both;
-}
+/* =========================================================
+   TOP META BAR
+========================================================= */
 
-.loading {
-  margin-top: 30px;
-  padding: 26px 20px;
-  text-align: center;
-  font-size: 1.05rem;
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 0.94rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--stroke);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
   backdrop-filter: blur(14px);
   box-shadow: var(--shadow-md);
-  position: relative;
-  overflow: hidden;
+  animation: fadeUp 0.45s ease both;
 }
 
-.loading::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
-  animation: shimmer 1.5s infinite;
+.meta::before {
+  content: "⚡";
+  margin-right: 2px;
 }
+
+/* =========================================================
+   FILTERS / SEARCH
+========================================================= */
 
 .filters {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 180px;
+  grid-template-columns: 1.2fr 1fr 190px;
   gap: 14px;
   margin-bottom: 14px;
   padding: 16px;
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.035));
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(16px);
-  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-xl);
+  animation: fadeUp 0.5s ease both;
 }
 
 .filters select,
@@ -134,108 +130,209 @@ body::after {
   height: 54px;
   border-radius: 18px;
   border: 1px solid var(--stroke-strong);
-  outline: none;
   font-size: 1rem;
-  font-weight: 700;
-  transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+  font-weight: 800;
+  outline: none;
+  transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .filters select {
   padding: 0 16px;
   color: var(--text);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
-  backdrop-filter: blur(10px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
-.filters select:focus,
-.filters select:hover {
-  border-color: rgba(101, 200, 255, 0.5);
-  box-shadow: 0 0 0 4px rgba(101, 200, 255, 0.08);
+.filters select:hover,
+.filters select:focus {
+  border-color: rgba(105, 203, 255, 0.45);
+  box-shadow: 0 0 0 4px rgba(105, 203, 255, 0.08);
   transform: translateY(-1px);
 }
 
 .filters button {
   cursor: pointer;
-  color: #08152d;
-  background: linear-gradient(135deg, var(--primary), #7ee7ff);
-  box-shadow: 0 12px 28px rgba(101, 200, 255, 0.3);
+  color: #08182f;
+  background: linear-gradient(135deg, var(--primary), #85e5ff);
+  box-shadow: 0 14px 30px rgba(105, 203, 255, 0.3);
+}
+
+.filters button::before {
+  content: "↻ ";
 }
 
 .filters button:hover {
   transform: translateY(-2px) scale(1.01);
-  box-shadow: 0 18px 34px rgba(101, 200, 255, 0.38);
+  box-shadow: 0 18px 34px rgba(105, 203, 255, 0.36);
 }
 
 .filters button:active {
   transform: translateY(0) scale(0.99);
 }
 
-.meta {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 18px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-size: 0.95rem;
-  color: var(--text-soft);
-  background: rgba(255,255,255,0.05);
+/* =========================================================
+   FEEDBACK STATES
+========================================================= */
+
+.loading,
+.error-box,
+.empty-state {
+  animation: fadeUp 0.45s ease both;
+}
+
+.loading {
+  margin-bottom: 16px;
+  padding: 22px 18px;
+  text-align: center;
+  font-size: 1.02rem;
+  font-weight: 800;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.03));
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.loading::before {
+  content: "⏳ Cargando picks premium...";
+  position: relative;
+  z-index: 1;
+}
+
+.loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.08), transparent);
+  transform: translateX(-110%);
+  animation: shimmer 1.5s linear infinite;
 }
 
 .error-box {
-  margin: 0 0 18px;
+  margin-bottom: 16px;
   padding: 16px 18px;
   border-radius: 18px;
-  font-weight: 700;
-  color: #ffe2e8;
-  border: 1px solid rgba(251, 113, 133, 0.26);
-  background: linear-gradient(180deg, rgba(120, 24, 52, 0.42), rgba(85, 18, 39, 0.26));
+  color: #ffe6ec;
+  font-weight: 800;
+  background: linear-gradient(180deg, rgba(132, 25, 54, 0.42), rgba(102, 22, 45, 0.26));
+  border: 1px solid rgba(255, 111, 145, 0.28);
   box-shadow: var(--shadow-md);
 }
 
+.error-box::before {
+  content: "❌ ";
+}
+
 .empty-state {
+  margin-bottom: 16px;
   padding: 22px 18px;
-  border-radius: 20px;
   text-align: center;
+  border-radius: 20px;
   color: var(--text-soft);
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  background: rgba(255,255,255,0.04);
   border: 1px dashed rgba(255,255,255,0.12);
 }
 
-.history {
-  margin-top: 22px;
+.empty-state::before {
+  content: "📭 ";
+}
+
+/* =========================================================
+   COMBO SECTION
+========================================================= */
+
+.combo {
+  margin-bottom: 18px;
   padding: 22px;
   border-radius: 30px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.03));
   border: 1px solid var(--stroke);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   backdrop-filter: blur(18px);
   position: relative;
   overflow: hidden;
+  animation: fadeUp 0.55s ease both;
 }
 
-.history::before {
+.combo::before {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.035) 45%, transparent 60%);
+    linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.04) 45%, transparent 62%);
   transform: translateX(-120%);
   animation: sectionShine 7s linear infinite;
   pointer-events: none;
 }
 
-.history h2 {
-  margin: 0 0 18px;
-  font-size: clamp(1.45rem, 2.4vw, 2rem);
-  letter-spacing: -0.03em;
-  color: var(--text);
+.combo h2 {
+  margin: 0 0 16px;
+  font-size: clamp(1.45rem, 2.3vw, 2rem);
+  letter-spacing: -0.04em;
 }
+
+.combo h2::before {
+  content: "🔥 ";
+}
+
+.combo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.combo-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+
+.combo-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.combo-row {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.07);
+  transition: transform 0.2s ease, border-color 0.25s ease;
+}
+
+.combo-row:hover {
+  transform: translateY(-2px);
+  border-color: rgba(105, 203, 255, 0.22);
+}
+
+.combo-row strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.combo-row strong::before {
+  content: "⚽ ";
+}
+
+.combo-row small {
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+/* =========================================================
+   GRID / CARDS
+========================================================= */
 
 .grid {
   display: grid;
@@ -246,13 +343,14 @@ body::after {
 .card {
   position: relative;
   overflow: hidden;
-  padding: 20px;
-  border-radius: 26px;
+  padding: 22px;
+  border-radius: 28px;
   background:
-    linear-gradient(180deg, rgba(26, 45, 95, 0.92), rgba(17, 33, 75, 0.82));
+    linear-gradient(180deg, rgba(24, 43, 94, 0.94), rgba(17, 32, 72, 0.84));
   border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+  animation: fadeUp 0.45s ease both;
   isolation: isolate;
 }
 
@@ -262,7 +360,7 @@ body::after {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(101, 200, 255, 0.22), rgba(138, 125, 255, 0.18), transparent 55%);
+  background: linear-gradient(135deg, rgba(105, 203, 255, 0.24), rgba(138, 123, 255, 0.2), transparent 60%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -272,18 +370,18 @@ body::after {
 .card::after {
   content: "";
   position: absolute;
-  width: 220px;
-  height: 220px;
-  right: -90px;
-  top: -90px;
-  background: radial-gradient(circle, rgba(101,200,255,0.13), transparent 60%);
+  width: 230px;
+  height: 230px;
+  right: -100px;
+  top: -100px;
+  background: radial-gradient(circle, rgba(105,203,255,0.12), transparent 60%);
   pointer-events: none;
 }
 
 .card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.42);
-  border-color: rgba(101, 200, 255, 0.2);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42);
+  border-color: rgba(105, 203, 255, 0.18);
 }
 
 .top {
@@ -300,111 +398,169 @@ body::after {
   gap: 8px;
   margin-bottom: 8px;
   font-size: 0.88rem;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #7fb8ff;
+  color: #86bfff;
 }
 
 .league::before {
-  content: "";
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #8a7dff, #65c8ff);
-  box-shadow: 0 0 12px rgba(138, 125, 255, 0.45);
+  content: "●";
+  font-size: 0.8rem;
+  color: #8a7bff;
+  text-shadow: 0 0 12px rgba(138, 123, 255, 0.5);
 }
 
 .card h2 {
   margin: 0;
-  font-size: clamp(1.45rem, 2.6vw, 2.2rem);
+  font-size: clamp(1.45rem, 2.5vw, 2.15rem);
   line-height: 1.08;
   letter-spacing: -0.04em;
 }
 
-.top > div:last-child {
-  min-width: fit-content;
+.time-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
   padding: 12px 16px;
   border-radius: 18px;
-  color: var(--text);
   font-weight: 800;
-  font-size: 0.98rem;
+  color: var(--text);
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--stroke);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
-.tags {
+.time-badge::before {
+  content: "🕒 ";
+}
+
+/* =========================================================
+   TAGS / BADGES / ICONS
+========================================================= */
+
+.tags,
+.stats {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.tags {
   margin-bottom: 16px;
 }
 
 .t,
 .b,
-.r {
+.r,
+.stats span {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
   min-height: 40px;
-  padding: 9px 16px;
+  padding: 10px 14px;
   border-radius: 999px;
   font-size: 0.95rem;
   font-weight: 800;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.05);
   color: var(--text);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  transition: transform 0.18s ease, background 0.25s ease;
+}
+
+.t:hover,
+.b:hover,
+.r:hover,
+.stats span:hover {
+  transform: translateY(-1px);
+}
+
+.t.pick-type::before {
+  content: "🎯";
+}
+
+.t.top::before {
+  content: "👑";
+}
+
+.b.normal::before {
+  content: "💎";
+}
+
+.b.media::before {
+  content: "⚡";
+}
+
+.b.alta::before {
+  content: "🔥";
 }
 
 .b.green {
-  color: #dcfff3;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(45, 212, 191, 0.16));
-  border-color: rgba(45, 212, 191, 0.22);
+  color: #ddfff4;
+  background: linear-gradient(135deg, rgba(25,211,162,0.22), rgba(28,178,140,0.18));
+  border-color: rgba(25,211,162,0.2);
 }
 
 .b.yellow {
-  color: #fff4ce;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.22), rgba(245, 158, 11, 0.16));
-  border-color: rgba(251, 191, 36, 0.2);
+  color: #fff3ce;
+  background: linear-gradient(135deg, rgba(247,201,72,0.24), rgba(245,158,11,0.16));
+  border-color: rgba(247,201,72,0.18);
 }
 
 .b.red {
-  color: #ffe3eb;
-  background: linear-gradient(135deg, rgba(251, 113, 133, 0.2), rgba(225, 29, 72, 0.14));
-  border-color: rgba(251, 113, 133, 0.18);
+  color: #ffe3ea;
+  background: linear-gradient(135deg, rgba(255,111,145,0.22), rgba(225,29,72,0.14));
+  border-color: rgba(255,111,145,0.18);
 }
 
 .r.win {
-  color: #dcfff3;
-  background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(45,212,191,0.16));
+  color: #ddfff4;
+  background: linear-gradient(135deg, rgba(25,211,162,0.22), rgba(28,178,140,0.18));
+}
+
+.r.win::before {
+  content: "✅";
 }
 
 .r.lost {
-  color: #ffe3eb;
-  background: linear-gradient(135deg, rgba(251,113,133,0.2), rgba(225,29,72,0.14));
+  color: #ffe3ea;
+  background: linear-gradient(135deg, rgba(255,111,145,0.22), rgba(225,29,72,0.14));
+}
+
+.r.lost::before {
+  content: "❌";
 }
 
 .r.pend {
-  color: #fff4ce;
-  background: linear-gradient(135deg, rgba(251,191,36,0.22), rgba(245,158,11,0.16));
+  color: #fff3ce;
+  background: linear-gradient(135deg, rgba(247,201,72,0.24), rgba(245,158,11,0.16));
 }
 
+.r.pend::before {
+  content: "⏳";
+}
+
+/* =========================================================
+   MAIN PICK BLOCK
+========================================================= */
+
 .pick {
-  margin-bottom: 16px;
+  margin: 16px 0;
   padding: 18px 20px;
   border-radius: 22px;
   font-size: clamp(1.2rem, 2.2vw, 1.75rem);
   font-weight: 900;
   letter-spacing: -0.04em;
-  color: white;
-  background:
-    linear-gradient(135deg, rgba(60, 96, 184, 0.42), rgba(71, 66, 180, 0.3));
+  color: #fff;
+  background: linear-gradient(135deg, rgba(60, 96, 184, 0.42), rgba(71, 66, 180, 0.3));
   border: 1px solid rgba(113, 159, 255, 0.18);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
   position: relative;
   overflow: hidden;
+}
+
+.pick::before {
+  content: "🏆 ";
 }
 
 .pick::after {
@@ -413,44 +569,83 @@ body::after {
   inset: 0;
   background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.06) 40%, transparent 62%);
   transform: translateX(-110%);
-  animation: shimmer 3.2s infinite;
+  animation: shimmer 3.4s infinite;
 }
 
 .stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   margin-bottom: 12px;
 }
 
-.stats span {
+.stats span:nth-child(1)::before {
+  content: "🥇";
+}
+.stats span:nth-child(2)::before {
+  content: "🚫";
+}
+.stats span:nth-child(3)::before {
+  content: "⚽";
+}
+.stats span:nth-child(4)::before {
+  content: "💰";
+}
+
+.cards-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+
+.cards-row .card-stat {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 42px;
   padding: 10px 14px;
   border-radius: 18px;
-  color: var(--text-soft);
-  font-weight: 700;
+  color: var(--text);
   background: rgba(255,255,255,0.045);
-  border: 1px solid rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-weight: 800;
 }
 
-.score {
-  margin: 10px 0 0;
-  padding: 12px 14px;
-  border-radius: 16px;
-  font-weight: 800;
-  color: #dff5ff;
-  background: rgba(101,200,255,0.08);
-  border: 1px solid rgba(101,200,255,0.14);
+.cards-row .card-stat::before {
+  content: "🟨";
 }
 
 .tip {
   margin: 16px 0 0;
   color: var(--text-soft);
   font-size: 1rem;
-  line-height: 1.65;
+  line-height: 1.68;
+}
+
+/* =========================================================
+   HISTORY
+========================================================= */
+
+.history {
+  margin-top: 22px;
+  padding: 22px;
+  border-radius: 30px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.03));
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(18px);
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.55s ease both;
+}
+
+.history h2 {
+  margin: 0 0 18px;
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  letter-spacing: -0.03em;
+}
+
+.history h2::before {
+  content: "📊 ";
 }
 
 .day {
@@ -466,8 +661,12 @@ body::after {
 
 .day h3 {
   margin: 0 0 14px;
-  font-size: 1.15rem;
+  font-size: 1.14rem;
   color: var(--text);
+}
+
+.day h3::before {
+  content: "🗓️ ";
 }
 
 .day-stats {
@@ -480,11 +679,11 @@ body::after {
 .day-stats span {
   padding: 9px 14px;
   border-radius: 999px;
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   font-weight: 800;
   color: var(--text);
   background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 
 .history-list {
@@ -507,7 +706,7 @@ body::after {
 
 .history-row:hover {
   transform: translateY(-2px);
-  border-color: rgba(101, 200, 255, 0.18);
+  border-color: rgba(105, 203, 255, 0.18);
   background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
 }
 
@@ -520,6 +719,10 @@ body::after {
 .history-row-left strong {
   color: var(--text);
   font-size: 1.02rem;
+}
+
+.history-row-left strong::before {
+  content: "⚽ ";
 }
 
 .history-row-left span {
@@ -537,6 +740,47 @@ body::after {
   flex-shrink: 0;
 }
 
+/* =========================================================
+   PREMIUM ICON BADGES
+========================================================= */
+
+.icon-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-weight: 800;
+  color: var(--text);
+}
+
+.icon-pill.live::before {
+  content: "🔴";
+}
+
+.icon-pill.new::before {
+  content: "🆕";
+}
+
+.icon-pill.hot::before {
+  content: "🔥";
+}
+
+.icon-pill.safe::before {
+  content: "🛡️";
+}
+
+.icon-pill.premium::before {
+  content: "💎";
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
 @media (max-width: 980px) {
   .filters {
     grid-template-columns: 1fr;
@@ -546,6 +790,7 @@ body::after {
     padding: 18px 14px 64px;
   }
 
+  .combo,
   .history {
     padding: 18px;
     border-radius: 24px;
@@ -553,7 +798,7 @@ body::after {
 
   .card {
     padding: 18px;
-    border-radius: 22px;
+    border-radius: 24px;
   }
 }
 
@@ -563,12 +808,8 @@ body::after {
     align-items: flex-start;
   }
 
-  .top > div:last-child {
-    width: 100%;
-  }
-
   .pick {
-    font-size: 1.15rem;
+    font-size: 1.12rem;
   }
 
   .history-row {
@@ -588,6 +829,10 @@ body::after {
     font-size: 0.9rem;
   }
 }
+
+/* =========================================================
+   ANIMATIONS
+========================================================= */
 
 @keyframes fadeUp {
   from {
