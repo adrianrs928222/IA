@@ -35,6 +35,19 @@ function formatMeta(data) {
   return meta;
 }
 
+function formatOdds(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  const num = Number(value);
+  if (Number.isNaN(num)) return "-";
+  return num.toFixed(2);
+}
+
+function formatProfit(value) {
+  const num = Number(value || 0);
+  const sign = num > 0 ? "+" : "";
+  return `${sign}${num.toFixed(2)} u`;
+}
+
 function createFilters() {
   const wrap = el("div", "filters");
 
@@ -92,6 +105,38 @@ function createEmpty() {
   return el("div", "empty-state", "No hay picks disponibles ahora mismo.");
 }
 
+function createDashboardStats(stats) {
+  const wrap = el("section", "dashboard-stats");
+
+  const title = el("h2", "", "Resumen");
+  wrap.appendChild(title);
+
+  const grid = el("div", "grid");
+
+  const card1 = el("div", "card");
+  card1.appendChild(el("div", "league", "Aciertos"));
+  card1.appendChild(el("h2", "", stats?.hits || "0/0"));
+  grid.appendChild(card1);
+
+  const card2 = el("div", "card");
+  card2.appendChild(el("div", "league", "Efectividad"));
+  card2.appendChild(el("h2", "", `${stats?.effectiveness ?? 0}%`));
+  grid.appendChild(card2);
+
+  const card3 = el("div", "card");
+  card3.appendChild(el("div", "league", "Beneficio"));
+  card3.appendChild(el("h2", "", formatProfit(stats?.profit ?? 0)));
+  grid.appendChild(card3);
+
+  const card4 = el("div", "card");
+  card4.appendChild(el("div", "league", "Picks"));
+  card4.appendChild(el("h2", "", String(stats?.total_picks ?? 0)));
+  grid.appendChild(card4);
+
+  wrap.appendChild(grid);
+  return wrap;
+}
+
 function filterPicks(picks) {
   return (picks || []).filter((p) => {
     const leagueOk = state.leagueFilter === "all" || p.league === state.leagueFilter;
@@ -135,13 +180,6 @@ function confidenceClass(conf) {
   if (conf >= 80) return "conf-high";
   if (conf >= 72) return "conf-medium";
   return "conf-low";
-}
-
-function formatOdds(value) {
-  if (value === null || value === undefined || value === "") return "-";
-  const num = Number(value);
-  if (Number.isNaN(num)) return "-";
-  return num.toFixed(2);
 }
 
 function createCombo(combo) {
@@ -235,6 +273,14 @@ function createCard(pick, isTop = false) {
     oddsRow.appendChild(badge(`${pick.bookmaker_market}`));
   }
   card.appendChild(oddsRow);
+
+  const valueRow = el("div", "stats");
+  valueRow.appendChild(badge(`Nuestra confianza: ${pick.model_confidence ?? "-"}%`));
+  valueRow.appendChild(badge(`Confianza de la casa: ${pick.book_confidence ?? "-"}%`));
+  valueRow.appendChild(badge(`Ventaja: ${pick.value_edge !== null && pick.value_edge !== undefined ? (pick.value_edge > 0 ? "+" : "") + pick.value_edge + "%" : "-"}`));
+  valueRow.appendChild(badge(`Stake recomendado: ${(pick.stake ?? 0)}/10`));
+  valueRow.appendChild(badge(`Value: ${pick.has_value ? "Sí" : "No"}`));
+  card.appendChild(valueRow);
 
   const cardsRow = el("div", "cards-row");
   const cards = pick.cards || {};
@@ -365,21 +411,22 @@ function createHistory(historyData) {
     );
 
     let extraText = `Cuota ${formatOdds(p.odds_estimate)} · ${p.source || "-"}`;
-    if (p.bookmaker) {
-      extraText += ` · ${p.bookmaker}`;
-    }
-    if (p.score_line) {
-      extraText += ` · Marcador ${p.score_line}`;
-    }
-    if (p.history_date) {
-      extraText += ` · ${p.history_date}`;
-    }
+    if (p.bookmaker) extraText += ` · ${p.bookmaker}`;
+    if (p.score_line) extraText += ` · Marcador ${p.score_line}`;
+    if (p.history_date) extraText += ` · ${p.history_date}`;
 
     const small = el("small", "", extraText);
+
+    const small2 = el(
+      "small",
+      "",
+      `Nuestra confianza ${p.model_confidence ?? "-"}% · Confianza de la casa ${p.book_confidence ?? "-"}% · Ventaja ${p.value_edge !== null && p.value_edge !== undefined ? (p.value_edge > 0 ? "+" : "") + p.value_edge + "%" : "-"} · Stake ${(p.stake ?? 0)}/10`
+    );
 
     left.appendChild(strong);
     left.appendChild(span);
     left.appendChild(small);
+    left.appendChild(small2);
 
     const right = el("div", "history-row-right");
     right.appendChild(badge(statusLabel(p.status), statusClass(p.status)));
@@ -416,6 +463,7 @@ function render() {
   const history = state.history || {};
 
   root.appendChild(formatMeta(data));
+  root.appendChild(createDashboardStats(data.dashboard_stats || {}));
 
   const combo = createCombo(data.combo_of_day);
   if (combo) root.appendChild(combo);
