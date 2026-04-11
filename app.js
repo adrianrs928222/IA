@@ -7,6 +7,8 @@ const state = {
   error: "",
   leagueFilter: "all",
   marketFilter: "all",
+  historyPage: 1,
+  historyPageSize: 12,
 };
 
 const root = document.getElementById("app");
@@ -54,7 +56,7 @@ function createFilters() {
     <option value="all">Todos los mercados</option>
     <option value="winner">Ganador</option>
     <option value="btts_yes">Ambos marcan</option>
-    <option value="over_2_5">Más de 2.5</option>
+    <option value="over_2_5">Más de 2.5 goles</option>
   `;
   marketSelect.value = state.marketFilter;
   marketSelect.onchange = (e) => {
@@ -74,7 +76,12 @@ function createFilters() {
 }
 
 function createLoading() {
-  return el("div", "loading");
+  const box = el("div", "loading");
+  box.innerHTML = `
+    <div class="loading-spinner"></div>
+    <p>Cargando picks premium...</p>
+  `;
+  return box;
 }
 
 function createError(message) {
@@ -96,17 +103,17 @@ function filterPicks(picks) {
 function pickTypeLabel(type) {
   if (type === "winner") return "Ganador";
   if (type === "btts_yes") return "Ambos marcan";
-  if (type === "over_2_5") return "Más de 2.5";
+  if (type === "over_2_5") return "Más de 2.5 goles";
   return "Pick";
 }
 
-function oddsBandLabel(confidence) {
+function confidenceBandLabel(confidence) {
   if (confidence >= 80) return "Confianza alta";
   if (confidence >= 72) return "Confianza media";
   return "Confianza intermedia";
 }
 
-function oddsBandClass(confidence) {
+function confidenceBandClass(confidence) {
   if (confidence >= 80) return "b alta green";
   if (confidence >= 72) return "b media yellow";
   return "b intermedia red";
@@ -130,6 +137,13 @@ function confidenceClass(conf) {
   return "conf-low";
 }
 
+function formatOdds(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  const num = Number(value);
+  if (Number.isNaN(num)) return "-";
+  return num.toFixed(2);
+}
+
 function createCombo(combo) {
   if (!combo || !combo.picks || !combo.picks.length) return null;
 
@@ -139,7 +153,7 @@ function createCombo(combo) {
 
   const meta = el("div", "combo-meta");
   meta.appendChild(badge(`Picks: ${combo.size || combo.picks.length}`));
-  meta.appendChild(badge(`Cuota est.: ${combo.estimated_total_odds ?? "-"}`));
+  meta.appendChild(badge(`Cuota: ${formatOdds(combo.estimated_total_odds)}`));
   meta.appendChild(badge(`Confianza media: ${combo.confidence ?? "-"}%`));
   wrap.appendChild(meta);
 
@@ -154,7 +168,7 @@ function createCombo(combo) {
     const sub = el(
       "small",
       "",
-      `${p.pick || "-"} · ${p.league || "-"} · ${p.confidence ?? "-"}% · Cuota ${p.odds_estimate ?? "-"}`
+      `${p.pick || "-"} · ${p.league || "-"} · ${p.confidence ?? "-"}% · Cuota ${formatOdds(p.odds_estimate)}`
     );
     row.appendChild(sub);
 
@@ -196,7 +210,9 @@ function createCard(pick, isTop = false) {
     tags.appendChild(badge("TOP PICK", "t top"));
   }
 
-  tags.appendChild(badge(oddsBandLabel(pick.confidence), oddsBandClass(pick.confidence)));
+  tags.appendChild(
+    badge(confidenceBandLabel(pick.confidence), confidenceBandClass(pick.confidence))
+  );
   tags.appendChild(createConfidenceBadge(pick.confidence || 0));
   tags.appendChild(badge(statusLabel(pick.status), statusClass(pick.status)));
   card.appendChild(tags);
@@ -208,8 +224,17 @@ function createCard(pick, isTop = false) {
   stats.appendChild(badge(`Ganador: ${pick.pick_winner || "-"}`));
   stats.appendChild(badge(`BTTS: ${pick.btts || "-"}`));
   stats.appendChild(badge(`Over 2.5: ${pick.over_2_5 || "-"}`));
-  stats.appendChild(badge(`Cuota estimada: ${pick.odds_estimate ?? "-"}`));
   card.appendChild(stats);
+
+  const oddsRow = el("div", "stats");
+  oddsRow.appendChild(badge(`Cuota: ${formatOdds(pick.odds_estimate)}`));
+  if (pick.bookmaker) {
+    oddsRow.appendChild(badge(`${pick.bookmaker}`));
+  }
+  if (pick.bookmaker_market) {
+    oddsRow.appendChild(badge(`${pick.bookmaker_market}`));
+  }
+  card.appendChild(oddsRow);
 
   const cardsRow = el("div", "cards-row");
   const cards = pick.cards || {};
@@ -255,64 +280,119 @@ function createGroupSection(titleText, picks, topFirst = false) {
   return section;
 }
 
+function createHistoryPagination(historyData) {
+  const totalPages = historyData?.total_pages || 1;
+  const currentPage = historyData?.page || 1;
+
+  if (totalPages <= 1) return null;
+
+  const wrap = el("div", "pagination");
+
+  const prev = document.createElement("button");
+  prev.textContent = "←";
+  prev.disabled = currentPage <= 1;
+  prev.onclick = () => {
+    if (state.historyPage > 1) {
+      state.historyPage -= 1;
+      loadHistoryOnly();
+    }
+  };
+  wrap.appendChild(prev);
+
+  const maxButtons = 7;
+  let start = Math.max(1, currentPage - 3);
+  let end = Math.min(totalPages, start + maxButtons - 1);
+
+  if (end - start + 1 < maxButtons) {
+    start = Math.max(1, end - maxButtons + 1);
+  }
+
+  for (let i = start; i <= end; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = String(i);
+    if (i === currentPage) btn.className = "active";
+    btn.onclick = () => {
+      state.historyPage = i;
+      loadHistoryOnly();
+    };
+    wrap.appendChild(btn);
+  }
+
+  const next = document.createElement("button");
+  next.textContent = "→";
+  next.disabled = currentPage >= totalPages;
+  next.onclick = () => {
+    if (state.historyPage < totalPages) {
+      state.historyPage += 1;
+      loadHistoryOnly();
+    }
+  };
+  wrap.appendChild(next);
+
+  return wrap;
+}
+
 function createHistory(historyData) {
   const wrap = el("section", "history");
   const title = el("h2", "", "Historial");
   wrap.appendChild(title);
 
-  const days = historyData?.days || [];
+  const summary = el(
+    "div",
+    "meta",
+    `Página ${historyData?.page || 1} de ${historyData?.total_pages || 1} · Total picks: ${historyData?.total_items || 0}`
+  );
+  wrap.appendChild(summary);
 
-  if (!days.length) {
+  const items = historyData?.items || [];
+
+  if (!items.length) {
     wrap.appendChild(el("div", "empty-state", "Todavía no hay historial disponible."));
     return wrap;
   }
 
-  days.forEach((day) => {
-    const dayBox = el("div", "day");
-    const h3 = el("h3", "", day.date || "-");
-    dayBox.appendChild(h3);
+  const list = el("div", "history-list");
 
-    const dayStats = el("div", "day-stats");
-    const stats = day.stats || {};
-    dayStats.appendChild(badge(`✅ ${stats.won ?? 0}`));
-    dayStats.appendChild(badge(`❌ ${stats.lost ?? 0}`));
-    dayStats.appendChild(badge(`⏳ ${stats.pending ?? 0}`));
-    dayBox.appendChild(dayStats);
+  items.forEach((p) => {
+    const row = el("div", "history-row");
 
-    const list = el("div", "history-list");
-    (day.picks || []).forEach((p) => {
-      const row = el("div", "history-row");
+    const left = el("div", "history-row-left");
+    const strong = el("strong", "", p.match || "-");
+    const span = el(
+      "span",
+      "",
+      `${p.pick || "-"} · ${p.league || "-"} · ${p.time_local || "-"} · ${p.confidence ?? 0}%`
+    );
 
-      const left = el("div", "history-row-left");
-      const strong = el("strong", "", p.match || "-");
-      const span = el(
-        "span",
-        "",
-        `${p.pick || "-"} · ${p.league || "-"} · ${p.time_local || "-"} · ${p.confidence ?? 0}%`
-      );
+    let extraText = `Cuota ${formatOdds(p.odds_estimate)} · ${p.source || "-"}`;
+    if (p.bookmaker) {
+      extraText += ` · ${p.bookmaker}`;
+    }
+    if (p.score_line) {
+      extraText += ` · Marcador ${p.score_line}`;
+    }
+    if (p.history_date) {
+      extraText += ` · ${p.history_date}`;
+    }
 
-      const marker = p.score_line ? ` · Marcador ${p.score_line}` : "";
-      const small = el(
-        "small",
-        "",
-        `Cuota ${p.odds_estimate ?? "-"} · ${p.source || "-"}${marker}`
-      );
+    const small = el("small", "", extraText);
 
-      left.appendChild(strong);
-      left.appendChild(span);
-      left.appendChild(small);
+    left.appendChild(strong);
+    left.appendChild(span);
+    left.appendChild(small);
 
-      const right = el("div", "history-row-right");
-      right.appendChild(badge(statusLabel(p.status), statusClass(p.status)));
+    const right = el("div", "history-row-right");
+    right.appendChild(badge(statusLabel(p.status), statusClass(p.status)));
 
-      row.appendChild(left);
-      row.appendChild(right);
-      list.appendChild(row);
-    });
-
-    dayBox.appendChild(list);
-    wrap.appendChild(dayBox);
+    row.appendChild(left);
+    row.appendChild(right);
+    list.appendChild(row);
   });
+
+  wrap.appendChild(list);
+
+  const pagination = createHistoryPagination(historyData);
+  if (pagination) wrap.appendChild(pagination);
 
   return wrap;
 }
@@ -343,7 +423,6 @@ function render() {
   const alta = filterPicks(data.groups?.alta || []);
   const media = filterPicks(data.groups?.media || []);
   const intermedia = filterPicks(data.groups?.intermedia || []);
-
   const allPicks = [...alta, ...media, ...intermedia];
 
   if (!allPicks.length) {
@@ -365,6 +444,16 @@ async function fetchJson(url) {
   return res.json();
 }
 
+async function loadHistoryOnly() {
+  try {
+    const historyUrl = `${API_BASE}/api/history?page=${state.historyPage}&page_size=${state.historyPageSize}`;
+    state.history = await fetchJson(historyUrl);
+    render();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function loadAll(forceRefresh = false) {
   state.loading = true;
   state.error = "";
@@ -375,9 +464,11 @@ async function loadAll(forceRefresh = false) {
       ? `${API_BASE}/api/picks?force_refresh=true`
       : `${API_BASE}/api/picks`;
 
+    const historyUrl = `${API_BASE}/api/history?page=${state.historyPage}&page_size=${state.historyPageSize}`;
+
     const [picksData, historyData] = await Promise.all([
       fetchJson(picksUrl),
-      fetchJson(`${API_BASE}/api/history`),
+      fetchJson(historyUrl),
     ]);
 
     state.data = picksData;
