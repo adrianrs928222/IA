@@ -3,77 +3,166 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Top Picks Pro Premium</title>
 
-  <meta name="description" content="Picks premium de fútbol con combinada del día, historial, confianza y análisis tipster." />
-  <meta name="theme-color" content="#08182f" />
+  <!-- Estilos básicos (puedes mejorarlos luego) -->
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+    }
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet"
-  />
+    .page-wrap {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+    }
 
-  <link rel="stylesheet" href="styles.css" />
+    h1, h2 {
+      margin: 10px 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .brand-logo {
+      background: #2563eb;
+      padding: 10px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+
+    .hero-boxes {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .hero-box {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .filters {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 10px;
+    }
+
+    select, button {
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      background: #22c55e;
+      color: black;
+      cursor: pointer;
+    }
+
+    .meta-bar {
+      margin-bottom: 20px;
+      opacity: 0.7;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+
+    .pick-card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+    }
+
+    .pick-main {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .badge {
+      padding: 5px 10px;
+      border-radius: 8px;
+      margin-right: 5px;
+      font-size: 12px;
+    }
+
+    .alta { background: #22c55e; }
+    .media { background: #f59e0b; }
+    .intermedia { background: #3b82f6; }
+
+    .won { background: #22c55e; }
+    .lost { background: #ef4444; }
+    .pending { background: #64748b; }
+
+    .value-box {
+      margin-top: 10px;
+      background: #020617;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .combo-box {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+    }
+
+    .history-card {
+      background: #1e293b;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+    }
+
+    .empty-box {
+      text-align: center;
+      opacity: 0.6;
+      padding: 20px;
+    }
+  </style>
 </head>
+
 <body>
-  <header class="premium-header">
-    <div class="premium-header__bg"></div>
 
-    <div class="premium-header__inner">
-      <div class="premium-brand">
-        <div class="premium-brand__logo">TP</div>
+  <!-- AQUÍ SE MONTA TODO -->
+  <div id="app"></div>
 
-        <div class="premium-brand__text">
-          <span class="premium-brand__eyebrow">Top Picks</span>
-          <h1>Pro Premium</h1>
-          <p>Picks inteligentes, confianza real y análisis tipster.</p>
-        </div>
-      </div>
-
-      <div class="premium-header__badges">
-        <span class="premium-chip">⚽ Fútbol</span>
-        <span class="premium-chip">🔥 Combi del día</span>
-        <span class="premium-chip">📊 Historial</span>
-        <span class="premium-chip">💎 Premium</span>
-      </div>
-    </div>
-
-    <div class="premium-stats">
-      <div class="premium-stat-card">
-        <span class="premium-stat-card__label">Cobertura</span>
-        <strong>LaLiga · Segunda · Champions</strong>
-      </div>
-
-      <div class="premium-stat-card">
-        <span class="premium-stat-card__label">Modo</span>
-        <strong>Tipster Pro</strong>
-      </div>
-
-      <div class="premium-stat-card">
-        <span class="premium-stat-card__label">Actualización</span>
-        <strong>Automática</strong>
-      </div>
-
-      <div class="premium-stat-card">
-        <span class="premium-stat-card__label">Confianza</span>
-        <strong>0% – 100%</strong>
-      </div>
-    </div>
-  </header>
-
-  <main class="premium-main">
-    <div id="app"></div>
-  </main>
-
-  <footer class="premium-footer">
-    <div class="premium-footer__inner">
-      <span>Top Picks Pro Premium</span>
-      <span>Europa/Madrid</span>
-    </div>
-  </footer>
-
+  <!-- SCRIPT -->
   <script src="app.js"></script>
+
 </body>
 </html>
