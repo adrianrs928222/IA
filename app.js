@@ -1,173 +1,81 @@
-const API_BASE = "https://funcional-s4vd.onrender.com";
+const API_URL = "https://funcional-s4vd.onrender.com";
 
 const state = {
-  data: null,
-  history: null,
-  loading: true,
-  error: "",
+  picks: [],
+  combo: null,
+  groups: { alta: [], media: [], intermedia: [] },
+  stats: {
+    hits: "0/0",
+    effectiveness: 0,
+    profit: 0,
+    total_picks: 0,
+    pending: 0,
+  },
+  history: {
+    items: [],
+    page: 1,
+    total_pages: 1,
+    total_items: 0,
+  },
   leagueFilter: "all",
-  marketFilter: "all",
-  historyPage: 1,
-  historyPageSize: 12,
+  riskFilter: "all",
+  loading: false,
 };
 
-const root = document.getElementById("app");
+// ==============================
+// HELPERS
+// ==============================
 
-function el(tag, className = "", text = "") {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text) node.textContent = text;
-  return node;
+function safe(v, fallback = "-") {
+  return v === null || v === undefined || v === "" ? fallback : v;
 }
 
-function badge(text, cls = "") {
-  return el("span", cls, text);
+function formatOdds(v) {
+  if (v === null || v === undefined || v === "") return "-";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "-";
+  return n.toFixed(2);
 }
 
-function formatMeta(data) {
-  const generated = data?.generated_at || "-";
-  const day = data?.cache_day || "-";
-  const lookahead = data?.lookahead_hours ?? "-";
-  const count = data?.count ?? 0;
-
-  const meta = el("div", "meta");
-  meta.textContent = `Picks: ${count} · Actualizado: ${generated} · Día: ${day} · Ventana: ${lookahead}h`;
-  return meta;
-}
-
-function formatOdds(value) {
-  if (value === null || value === undefined || value === "") return "-";
-  const num = Number(value);
-  if (Number.isNaN(num)) return "-";
-  return num.toFixed(2);
-}
-
-function formatProfit(value) {
-  const num = Number(value || 0);
-  const sign = num > 0 ? "+" : "";
-  return `${sign}${num.toFixed(2)} u`;
-}
-
-function createFilters() {
-  const wrap = el("div", "filters");
-
-  const leagueSelect = document.createElement("select");
-  leagueSelect.innerHTML = `
-    <option value="all">Todas las ligas</option>
-    <option value="LaLiga">LaLiga</option>
-    <option value="Segunda División">Segunda División</option>
-    <option value="Champions League">Champions League</option>
-  `;
-  leagueSelect.value = state.leagueFilter;
-  leagueSelect.onchange = (e) => {
-    state.leagueFilter = e.target.value;
-    render();
-  };
-
-  const marketSelect = document.createElement("select");
-  marketSelect.innerHTML = `
-    <option value="all">Todos los mercados</option>
-    <option value="winner">Ganador</option>
-    <option value="btts_yes">Ambos marcan</option>
-    <option value="over_2_5">Más de 2.5 goles</option>
-  `;
-  marketSelect.value = state.marketFilter;
-  marketSelect.onchange = (e) => {
-    state.marketFilter = e.target.value;
-    render();
-  };
-
-  const refreshBtn = document.createElement("button");
-  refreshBtn.textContent = "Refresh";
-  refreshBtn.onclick = () => loadAll(true);
-
-  wrap.appendChild(leagueSelect);
-  wrap.appendChild(marketSelect);
-  wrap.appendChild(refreshBtn);
-
-  return wrap;
-}
-
-function createLoading() {
-  const box = el("div", "loading");
-  box.innerHTML = `
-    <div class="loading-spinner"></div>
-    <p>Cargando picks premium...</p>
-  `;
-  return box;
-}
-
-function createError(message) {
-  return el("div", "error-box", message || "Error cargando picks");
-}
-
-function createEmpty() {
-  return el("div", "empty-state", "No hay picks disponibles ahora mismo.");
-}
-
-function createDashboardStats(stats) {
-  const wrap = el("section", "dashboard-stats");
-
-  const title = el("h2", "", "Resumen");
-  wrap.appendChild(title);
-
-  const grid = el("div", "grid");
-
-  const card1 = el("div", "card");
-  card1.appendChild(el("div", "league", "Aciertos"));
-  card1.appendChild(el("h2", "", stats?.hits || "0/0"));
-  grid.appendChild(card1);
-
-  const card2 = el("div", "card");
-  card2.appendChild(el("div", "league", "Efectividad"));
-  card2.appendChild(el("h2", "", `${stats?.effectiveness ?? 0}%`));
-  grid.appendChild(card2);
-
-  const card3 = el("div", "card");
-  card3.appendChild(el("div", "league", "Beneficio"));
-  card3.appendChild(el("h2", "", formatProfit(stats?.profit ?? 0)));
-  grid.appendChild(card3);
-
-  const card4 = el("div", "card");
-  card4.appendChild(el("div", "league", "Picks"));
-  card4.appendChild(el("h2", "", String(stats?.total_picks ?? 0)));
-  grid.appendChild(card4);
-
-  wrap.appendChild(grid);
-  return wrap;
-}
-
-function filterPicks(picks) {
-  return (picks || []).filter((p) => {
-    const leagueOk = state.leagueFilter === "all" || p.league === state.leagueFilter;
-    const marketOk = state.marketFilter === "all" || p.pick_type === state.marketFilter;
-    return leagueOk && marketOk;
-  });
+function formatProfit(v) {
+  const n = Number(v || 0);
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}u`;
 }
 
 function pickTypeLabel(type) {
-  if (type === "winner") return "Ganador";
-  if (type === "btts_yes") return "Ambos marcan";
-  if (type === "over_2_5") return "Más de 2.5 goles";
-  return "Pick";
+  switch (type) {
+    case "winner":
+      return "Ganador";
+    case "double_chance":
+      return "Doble oportunidad";
+    case "over_2_5":
+      return "+2.5 goles";
+    case "under_2_5":
+      return "-2.5 goles";
+    case "under_3_5":
+      return "-3.5 goles";
+    case "btts_yes":
+      return "BTTS Sí";
+    case "btts_no":
+      return "BTTS No";
+    case "team_cards":
+      return "Tarjetas";
+    default:
+      return "Pick";
+  }
 }
 
-function confidenceBandLabel(confidence) {
+function confidenceLabel(confidence) {
   if (confidence >= 80) return "Confianza alta";
   if (confidence >= 72) return "Confianza media";
   return "Confianza intermedia";
 }
 
-function confidenceBandClass(confidence) {
-  if (confidence >= 80) return "b alta green";
-  if (confidence >= 72) return "b media yellow";
-  return "b intermedia red";
-}
-
-function statusClass(status) {
-  if (status === "won") return "r win";
-  if (status === "lost") return "r lost";
-  return "r pend";
+function confidenceClass(confidence) {
+  if (confidence >= 80) return "alta";
+  if (confidence >= 72) return "media";
+  return "intermedia";
 }
 
 function statusLabel(status) {
@@ -176,358 +84,534 @@ function statusLabel(status) {
   return "Pendiente";
 }
 
-function confidenceClass(conf) {
-  if (conf >= 80) return "conf-high";
-  if (conf >= 72) return "conf-medium";
-  return "conf-low";
+function statusClass(status) {
+  if (status === "won") return "won";
+  if (status === "lost") return "lost";
+  return "pending";
 }
 
-function createCombo(combo) {
-  if (!combo || !combo.picks || !combo.picks.length) return null;
-
-  const wrap = el("section", "combo");
-  const title = el("h2", "", "Combi del día");
-  wrap.appendChild(title);
-
-  const meta = el("div", "combo-meta");
-  meta.appendChild(badge(`Picks: ${combo.size || combo.picks.length}`));
-  meta.appendChild(badge(`Cuota: ${formatOdds(combo.estimated_total_odds)}`));
-  meta.appendChild(badge(`Confianza media: ${combo.confidence ?? "-"}%`));
-  wrap.appendChild(meta);
-
-  const list = el("div", "combo-card-list");
-
-  combo.picks.forEach((p) => {
-    const row = el("div", "combo-row");
-
-    const strong = el("strong", "", p.match || "-");
-    row.appendChild(strong);
-
-    const sub = el(
-      "small",
-      "",
-      `${p.pick || "-"} · ${p.league || "-"} · ${p.confidence ?? "-"}% · Cuota ${formatOdds(p.odds_estimate)}`
-    );
-    row.appendChild(sub);
-
-    list.appendChild(row);
-  });
-
-  wrap.appendChild(list);
-  return wrap;
+function riskAllowed(pick) {
+  if (state.riskFilter === "all") return true;
+  if (state.riskFilter === "safe") return pick.confidence >= 78;
+  if (state.riskFilter === "medium") return pick.confidence >= 72 && pick.confidence < 78;
+  if (state.riskFilter === "aggressive") return pick.confidence < 72;
+  return true;
 }
 
-function createConfidenceBadge(confidence) {
-  const span = badge(`${confidence}%`, "confidence-badge");
-  span.classList.add(confidenceClass(confidence));
-  return span;
+function leagueAllowed(pick) {
+  if (state.leagueFilter === "all") return true;
+  return pick.league === state.leagueFilter;
 }
 
-function createCard(pick, isTop = false) {
-  const card = el("article", "card");
-
-  const top = el("div", "top");
-  const left = document.createElement("div");
-
-  const league = el("div", "league", pick.league || "Liga");
-  left.appendChild(league);
-
-  const title = el("h2", "", pick.match || "-");
-  left.appendChild(title);
-
-  top.appendChild(left);
-
-  const timeBadge = el("div", "time-badge", pick.time_local || "-");
-  top.appendChild(timeBadge);
-  card.appendChild(top);
-
-  const tags = el("div", "tags");
-  tags.appendChild(badge(pickTypeLabel(pick.pick_type), "t pick-type"));
-
-  if (isTop) {
-    tags.appendChild(badge("TOP PICK", "t top"));
-  }
-
-  tags.appendChild(
-    badge(confidenceBandLabel(pick.confidence), confidenceBandClass(pick.confidence))
-  );
-  tags.appendChild(createConfidenceBadge(pick.confidence || 0));
-  tags.appendChild(badge(statusLabel(pick.status), statusClass(pick.status)));
-  card.appendChild(tags);
-
-  const pickBox = el("div", "pick", pick.pick || "-");
-  card.appendChild(pickBox);
-
-  const stats = el("div", "stats");
-  stats.appendChild(badge(`Ganador: ${pick.pick_winner || "-"}`));
-  stats.appendChild(badge(`BTTS: ${pick.btts || "-"}`));
-  stats.appendChild(badge(`Over 2.5: ${pick.over_2_5 || "-"}`));
-  card.appendChild(stats);
-
-  const oddsRow = el("div", "stats");
-  oddsRow.appendChild(badge(`Cuota: ${formatOdds(pick.odds_estimate)}`));
-  if (pick.bookmaker) {
-    oddsRow.appendChild(badge(`${pick.bookmaker}`));
-  }
-  if (pick.bookmaker_market) {
-    oddsRow.appendChild(badge(`${pick.bookmaker_market}`));
-  }
-  card.appendChild(oddsRow);
-
-  const valueRow = el("div", "stats");
-  valueRow.appendChild(badge(`Nuestra confianza: ${pick.model_confidence ?? "-"}%`));
-  valueRow.appendChild(badge(`Confianza de la casa: ${pick.book_confidence ?? "-"}%`));
-  valueRow.appendChild(badge(`Ventaja: ${pick.value_edge !== null && pick.value_edge !== undefined ? (pick.value_edge > 0 ? "+" : "") + pick.value_edge + "%" : "-"}`));
-  valueRow.appendChild(badge(`Stake recomendado: ${(pick.stake ?? 0)}/10`));
-  valueRow.appendChild(badge(`Value: ${pick.has_value ? "Sí" : "No"}`));
-  card.appendChild(valueRow);
-
-  const cardsRow = el("div", "cards-row");
-  const cards = pick.cards || {};
-  const entries = Object.entries(cards);
-
-  if (entries.length) {
-    entries.forEach(([team, value]) => {
-      cardsRow.appendChild(badge(`${team}: ${value}`, "card-stat"));
-    });
-    card.appendChild(cardsRow);
-  }
-
-  if (pick.score_line) {
-    const score = el("div", "score", `Marcador: ${pick.score_line}`);
-    card.appendChild(score);
-  }
-
-  if (pick.tipster_explanation) {
-    const tip = el("p", "tip", pick.tipster_explanation);
-    card.appendChild(tip);
-  }
-
-  return card;
+function filterPicks(picks) {
+  return (picks || []).filter((p) => leagueAllowed(p) && riskAllowed(p));
 }
 
-function createGroupSection(titleText, picks, topFirst = false) {
-  const section = document.createElement("section");
+// ==============================
+// FETCH
+// ==============================
 
-  const title = el("h2", "", titleText);
-  section.appendChild(title);
-
-  if (!picks.length) {
-    section.appendChild(el("div", "empty-state", "No hay picks en esta categoría."));
-    return section;
-  }
-
-  const grid = el("div", "grid");
-  picks.forEach((pick, idx) => {
-    grid.appendChild(createCard(pick, topFirst && idx === 0));
-  });
-  section.appendChild(grid);
-
-  return section;
-}
-
-function createHistoryPagination(historyData) {
-  const totalPages = historyData?.total_pages || 1;
-  const currentPage = historyData?.page || 1;
-
-  if (totalPages <= 1) return null;
-
-  const wrap = el("div", "pagination");
-
-  const prev = document.createElement("button");
-  prev.textContent = "←";
-  prev.disabled = currentPage <= 1;
-  prev.onclick = () => {
-    if (state.historyPage > 1) {
-      state.historyPage -= 1;
-      loadHistoryOnly();
-    }
-  };
-  wrap.appendChild(prev);
-
-  const maxButtons = 7;
-  let start = Math.max(1, currentPage - 3);
-  let end = Math.min(totalPages, start + maxButtons - 1);
-
-  if (end - start + 1 < maxButtons) {
-    start = Math.max(1, end - maxButtons + 1);
-  }
-
-  for (let i = start; i <= end; i++) {
-    const btn = document.createElement("button");
-    btn.textContent = String(i);
-    if (i === currentPage) btn.className = "active";
-    btn.onclick = () => {
-      state.historyPage = i;
-      loadHistoryOnly();
-    };
-    wrap.appendChild(btn);
-  }
-
-  const next = document.createElement("button");
-  next.textContent = "→";
-  next.disabled = currentPage >= totalPages;
-  next.onclick = () => {
-    if (state.historyPage < totalPages) {
-      state.historyPage += 1;
-      loadHistoryOnly();
-    }
-  };
-  wrap.appendChild(next);
-
-  return wrap;
-}
-
-function createHistory(historyData) {
-  const wrap = el("section", "history");
-  const title = el("h2", "", "Historial");
-  wrap.appendChild(title);
-
-  const summary = el(
-    "div",
-    "meta",
-    `Página ${historyData?.page || 1} de ${historyData?.total_pages || 1} · Total picks: ${historyData?.total_items || 0}`
-  );
-  wrap.appendChild(summary);
-
-  const items = historyData?.items || [];
-
-  if (!items.length) {
-    wrap.appendChild(el("div", "empty-state", "Todavía no hay historial disponible."));
-    return wrap;
-  }
-
-  const list = el("div", "history-list");
-
-  items.forEach((p) => {
-    const row = el("div", "history-row");
-
-    const left = el("div", "history-row-left");
-    const strong = el("strong", "", p.match || "-");
-    const span = el(
-      "span",
-      "",
-      `${p.pick || "-"} · ${p.league || "-"} · ${p.time_local || "-"} · ${p.confidence ?? 0}%`
-    );
-
-    let extraText = `Cuota ${formatOdds(p.odds_estimate)} · ${p.source || "-"}`;
-    if (p.bookmaker) extraText += ` · ${p.bookmaker}`;
-    if (p.score_line) extraText += ` · Marcador ${p.score_line}`;
-    if (p.history_date) extraText += ` · ${p.history_date}`;
-
-    const small = el("small", "", extraText);
-
-    const small2 = el(
-      "small",
-      "",
-      `Nuestra confianza ${p.model_confidence ?? "-"}% · Confianza de la casa ${p.book_confidence ?? "-"}% · Ventaja ${p.value_edge !== null && p.value_edge !== undefined ? (p.value_edge > 0 ? "+" : "") + p.value_edge + "%" : "-"} · Stake ${(p.stake ?? 0)}/10`
-    );
-
-    left.appendChild(strong);
-    left.appendChild(span);
-    left.appendChild(small);
-    left.appendChild(small2);
-
-    const right = el("div", "history-row-right");
-    right.appendChild(badge(statusLabel(p.status), statusClass(p.status)));
-
-    row.appendChild(left);
-    row.appendChild(right);
-    list.appendChild(row);
-  });
-
-  wrap.appendChild(list);
-
-  const pagination = createHistoryPagination(historyData);
-  if (pagination) wrap.appendChild(pagination);
-
-  return wrap;
-}
-
-function render() {
-  root.innerHTML = "";
-
-  root.appendChild(createFilters());
-
-  if (state.loading) {
-    root.appendChild(createLoading());
-    return;
-  }
-
-  if (state.error) {
-    root.appendChild(createError(state.error));
-    return;
-  }
-
-  const data = state.data || {};
-  const history = state.history || {};
-
-  root.appendChild(formatMeta(data));
-  root.appendChild(createDashboardStats(data.dashboard_stats || {}));
-
-  const combo = createCombo(data.combo_of_day);
-  if (combo) root.appendChild(combo);
-
-  const alta = filterPicks(data.groups?.alta || []);
-  const media = filterPicks(data.groups?.media || []);
-  const intermedia = filterPicks(data.groups?.intermedia || []);
-  const allPicks = [...alta, ...media, ...intermedia];
-
-  if (!allPicks.length) {
-    root.appendChild(createEmpty());
-  } else {
-    root.appendChild(createGroupSection("Confianza alta", alta, true));
-    root.appendChild(createGroupSection("Confianza media", media));
-    root.appendChild(createGroupSection("Confianza intermedia", intermedia));
-  }
-
-  root.appendChild(createHistory(history));
-}
-
-async function fetchJson(url) {
+async function fetchJSON(url) {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }
-  return res.json();
+  return await res.json();
 }
 
-async function loadHistoryOnly() {
-  try {
-    const historyUrl = `${API_BASE}/api/history?page=${state.historyPage}&page_size=${state.historyPageSize}`;
-    state.history = await fetchJson(historyUrl);
-    render();
-  } catch (err) {
-    console.error(err);
-  }
+async function fetchPicks(forceRefresh = true) {
+  const url = forceRefresh
+    ? `${API_URL}/api/picks?force_refresh=true`
+    : `${API_URL}/api/picks`;
+
+  return fetchJSON(url);
 }
 
-async function loadAll(forceRefresh = false) {
-  state.loading = true;
-  state.error = "";
-  render();
+async function fetchHistory(page = 1) {
+  return fetchJSON(`${API_URL}/api/history?page=${page}&page_size=12`);
+}
 
+async function loadAll(forceRefresh = true) {
   try {
-    const picksUrl = forceRefresh
-      ? `${API_BASE}/api/picks?force_refresh=true`
-      : `${API_BASE}/api/picks`;
-
-    const historyUrl = `${API_BASE}/api/history?page=${state.historyPage}&page_size=${state.historyPageSize}`;
+    state.loading = true;
+    renderLoading();
 
     const [picksData, historyData] = await Promise.all([
-      fetchJson(picksUrl),
-      fetchJson(historyUrl),
+      fetchPicks(forceRefresh),
+      fetchHistory(state.history.page || 1),
     ]);
 
-    state.data = picksData;
-    state.history = historyData;
-  } catch (err) {
-    state.error = "No se pudo cargar la información.";
-    console.error(err);
-  } finally {
+    state.picks = picksData.picks || [];
+    state.combo = picksData.combo_of_day || null;
+    state.groups = picksData.groups || { alta: [], media: [], intermedia: [] };
+    state.stats = picksData.dashboard_stats || {
+      hits: "0/0",
+      effectiveness: 0,
+      profit: 0,
+      total_picks: 0,
+      pending: 0,
+    };
+
+    state.history = historyData || {
+      items: [],
+      page: 1,
+      total_pages: 1,
+      total_items: 0,
+    };
+
     state.loading = false;
-    render();
+    renderAll();
+  } catch (err) {
+    console.error(err);
+    state.loading = false;
+    renderError("Error cargando datos");
   }
 }
 
-loadAll();
+async function goHistoryPage(page) {
+  try {
+    const historyData = await fetchHistory(page);
+    state.history = historyData;
+    renderHistory();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// ==============================
+// ROOT / STRUCTURE
+// ==============================
+
+function ensureLayout() {
+  const app = document.getElementById("app");
+  if (!app) return null;
+
+  if (!document.getElementById("topbar")) {
+    app.innerHTML = `
+      <div class="page-wrap">
+        <section class="topbar" id="topbar">
+          <div class="brand">
+            <div class="brand-logo">TP</div>
+            <div>
+              <div class="brand-kicker">TOP PICKS</div>
+              <h1>Pro Premium</h1>
+              <p>Picks inteligentes, confianza real y análisis tipster.</p>
+            </div>
+          </div>
+
+          <div class="top-nav">
+            <span>⚽ Fútbol</span>
+            <span>🔥 Combi del día</span>
+            <span>📜 Historial</span>
+            <span>💎 Premium</span>
+          </div>
+        </section>
+
+        <section class="hero-boxes">
+          <div class="hero-box">
+            <div class="hero-title">COBERTURA</div>
+            <div class="hero-value">LaLiga · Segunda · Champions</div>
+          </div>
+          <div class="hero-box">
+            <div class="hero-title">MODO</div>
+            <div class="hero-value">Tipster Pro</div>
+          </div>
+          <div class="hero-box">
+            <div class="hero-title">ACTUALIZACIÓN</div>
+            <div class="hero-value">Automática</div>
+          </div>
+          <div class="hero-box">
+            <div class="hero-title">CONFIANZA</div>
+            <div class="hero-value">0%-100%</div>
+          </div>
+        </section>
+
+        <section class="filters" id="filters"></section>
+
+        <section class="meta-bar" id="metaBar"></section>
+
+        <section class="section-block">
+          <h2>Resumen</h2>
+          <div class="stats-grid" id="stats"></div>
+        </section>
+
+        <section class="section-block">
+          <div id="combo"></div>
+        </section>
+
+        <section class="section-block">
+          <h2>Picks</h2>
+          <div class="cards-grid" id="picks"></div>
+        </section>
+
+        <section class="section-block">
+          <h2>Historial</h2>
+          <div id="history"></div>
+        </section>
+      </div>
+    `;
+  }
+
+  return app;
+}
+
+// ==============================
+// RENDER GENERAL
+// ==============================
+
+function renderLoading() {
+  ensureLayout();
+  const picksEl = document.getElementById("picks");
+  if (picksEl) {
+    picksEl.innerHTML = `<div class="empty-box">Cargando picks...</div>`;
+  }
+}
+
+function renderError(message) {
+  ensureLayout();
+  const picksEl = document.getElementById("picks");
+  if (picksEl) {
+    picksEl.innerHTML = `<div class="empty-box">${message}</div>`;
+  }
+}
+
+function renderAll() {
+  ensureLayout();
+  renderFilters();
+  renderMetaBar();
+  renderStats();
+  renderCombo();
+  renderPicks();
+  renderHistory();
+}
+
+// ==============================
+// FILTERS
+// ==============================
+
+function renderFilters() {
+  const el = document.getElementById("filters");
+  if (!el) return;
+
+  el.innerHTML = `
+    <select id="leagueFilter">
+      <option value="all">Todas las ligas</option>
+      <option value="LaLiga">LaLiga</option>
+      <option value="Segunda División">Segunda División</option>
+      <option value="Champions League">Champions League</option>
+    </select>
+
+    <select id="riskFilter">
+      <option value="all">Todos los riesgos</option>
+      <option value="safe">Seguros</option>
+      <option value="medium">Medios</option>
+      <option value="aggressive">Agresivos</option>
+    </select>
+
+    <button id="refreshBtn">Refresh</button>
+  `;
+
+  const leagueSelect = document.getElementById("leagueFilter");
+  const riskSelect = document.getElementById("riskFilter");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  leagueSelect.value = state.leagueFilter;
+  riskSelect.value = state.riskFilter;
+
+  leagueSelect.onchange = (e) => {
+    state.leagueFilter = e.target.value;
+    renderPicks();
+  };
+
+  riskSelect.onchange = (e) => {
+    state.riskFilter = e.target.value;
+    renderPicks();
+  };
+
+  refreshBtn.onclick = () => loadAll(true);
+}
+
+// ==============================
+// META BAR
+// ==============================
+
+function renderMetaBar() {
+  const el = document.getElementById("metaBar");
+  if (!el) return;
+
+  el.innerHTML = `
+    ⚡ Picks: ${state.picks.length} · Actualizado automáticamente · Ventana: 168h
+  `;
+}
+
+// ==============================
+// STATS
+// ==============================
+
+function renderStats() {
+  const el = document.getElementById("stats");
+  if (!el) return;
+
+  el.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">ACIERTOS</div>
+      <div class="stat-value">${safe(state.stats.hits, "0/0")}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">EFECTIVIDAD</div>
+      <div class="stat-value">${safe(state.stats.effectiveness, 0)}%</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">BENEFICIO</div>
+      <div class="stat-value">${formatProfit(state.stats.profit)}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">PICKS</div>
+      <div class="stat-value">${safe(state.stats.total_picks, 0)}</div>
+    </div>
+  `;
+}
+
+// ==============================
+// COMBO
+// ==============================
+
+function comboItemHTML(p) {
+  return `
+    <div class="combo-item">
+      <div class="combo-match">${safe(p.match)}</div>
+      <div class="combo-pick">${safe(p.pick)}</div>
+      <div class="combo-meta-line">
+        <span>💰 ${formatOdds(p.odds_estimate)}</span>
+        <span>🎯 ${safe(p.confidence, 0)}%</span>
+        <span>🏷 ${pickTypeLabel(p.pick_type)}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderCombo() {
+  const el = document.getElementById("combo");
+  if (!el) return;
+
+  if (!state.combo || !state.combo.picks || !state.combo.picks.length) {
+    el.innerHTML = `<div class="empty-box">No hay combinada disponible.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="combo-box">
+      <h2>🔥 Combi del día</h2>
+
+      <div class="combo-summary">
+        <span class="pill">Picks: ${safe(state.combo.size, state.combo.picks.length)}</span>
+        <span class="pill">Cuota: ${formatOdds(state.combo.estimated_total_odds)}</span>
+        <span class="pill">Confianza media: ${safe(state.combo.confidence, 0)}%</span>
+      </div>
+
+      <div class="combo-list">
+        ${state.combo.picks.map(comboItemHTML).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// ==============================
+// PICK CARD
+// ==============================
+
+function extraTagsHTML(p) {
+  let html = "";
+
+  if (p.btts) {
+    html += `<span class="mini-pill">BTTS: ${p.btts}</span>`;
+  }
+
+  if (p.over_2_5) {
+    html += `<span class="mini-pill">Over/Under: ${p.over_2_5}</span>`;
+  }
+
+  if (p.cards_team) {
+    html += `<span class="mini-pill">Tarjetas: ${p.cards_team} +${p.cards_line}</span>`;
+  }
+
+  if (p.bookmaker) {
+    html += `<span class="mini-pill">Casa: ${p.bookmaker}</span>`;
+  }
+
+  return html;
+}
+
+function valueBoxHTML(p) {
+  if (
+    p.model_confidence === null ||
+    p.model_confidence === undefined ||
+    p.book_confidence === null ||
+    p.book_confidence === undefined ||
+    p.value_edge === null ||
+    p.value_edge === undefined
+  ) {
+    return "";
+  }
+
+  const edgeSign = Number(p.value_edge) > 0 ? "+" : "";
+
+  return `
+    <div class="value-box">
+      <div>Nuestra confianza: ${p.model_confidence}%</div>
+      <div>Confianza del mercado: ${p.book_confidence}%</div>
+      <div>Ventaja: ${edgeSign}${p.value_edge}%</div>
+    </div>
+  `;
+}
+
+function pickCardHTML(p) {
+  return `
+    <div class="pick-card">
+      <div class="pick-top">
+        <div>
+          <div class="pick-league">${safe(p.league)}</div>
+          <div class="pick-match">${safe(p.match)}</div>
+        </div>
+        <div class="pick-time-box">
+          <div>${safe(p.time_local)}</div>
+        </div>
+      </div>
+
+      <div class="pick-badges">
+        <span class="badge neutral">${pickTypeLabel(p.pick_type)}</span>
+        <span class="badge ${confidenceClass(p.confidence)}">${confidenceLabel(p.confidence)}</span>
+        <span class="badge ${statusClass(p.status)}">${statusLabel(p.status)}</span>
+        <span class="badge percent">${safe(p.confidence, 0)}%</span>
+      </div>
+
+      <div class="pick-main">
+        ${safe(p.pick)}
+      </div>
+
+      <div class="pick-meta">
+        <span>💰 Cuota: ${formatOdds(p.odds_estimate)}</span>
+        <span>🎯 Stake: ${safe(p.stake, 0)}/5</span>
+      </div>
+
+      <div class="pick-tags">
+        ${extraTagsHTML(p)}
+      </div>
+
+      ${valueBoxHTML(p)}
+
+      ${
+        p.score_line
+          ? `<div class="score-line">Marcador: ${p.score_line}</div>`
+          : ""
+      }
+
+      <div class="pick-explanation">
+        ${safe(p.tipster_explanation, "")}
+      </div>
+    </div>
+  `;
+}
+
+function renderPicks() {
+  const el = document.getElementById("picks");
+  if (!el) return;
+
+  const filtered = filterPicks(state.picks);
+
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-box">No hay picks con esos filtros.</div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map(pickCardHTML).join("");
+}
+
+// ==============================
+// HISTORY
+// ==============================
+
+function historyCardHTML(p) {
+  return `
+    <div class="history-card">
+      <div class="history-left">
+        <div class="history-match">${safe(p.match)}</div>
+        <div class="history-sub">${safe(p.pick)} · ${safe(p.league)} · ${safe(p.time_local)}</div>
+        <div class="history-sub">
+          Cuota: ${formatOdds(p.odds_estimate)} · Stake: ${safe(p.stake, 0)}/5 · ${safe(p.history_date)}
+        </div>
+        ${
+          p.score_line
+            ? `<div class="history-sub">Marcador: ${p.score_line}</div>`
+            : ""
+        }
+      </div>
+      <div class="history-right">
+        <span class="badge ${statusClass(p.status)}">${statusLabel(p.status)}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderHistoryPagination() {
+  const totalPages = state.history.total_pages || 1;
+  const current = state.history.page || 1;
+
+  if (totalPages <= 1) return "";
+
+  let buttons = "";
+
+  const prevDisabled = current <= 1 ? "disabled" : "";
+  const nextDisabled = current >= totalPages ? "disabled" : "";
+
+  buttons += `<button ${prevDisabled} onclick="window.__goHistory(${current - 1})">←</button>`;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === current) {
+      buttons += `<button class="active" onclick="window.__goHistory(${i})">${i}</button>`;
+    } else {
+      buttons += `<button onclick="window.__goHistory(${i})">${i}</button>`;
+    }
+  }
+
+  buttons += `<button ${nextDisabled} onclick="window.__goHistory(${current + 1})">→</button>`;
+
+  return `<div class="pagination">${buttons}</div>`;
+}
+
+function renderHistory() {
+  const el = document.getElementById("history");
+  if (!el) return;
+
+  const items = state.history.items || [];
+
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-box">No hay historial todavía.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="history-list">
+      ${items.map(historyCardHTML).join("")}
+    </div>
+    ${renderHistoryPagination()}
+  `;
+}
+
+window.__goHistory = function (page) {
+  if (page < 1 || page > (state.history.total_pages || 1)) return;
+  state.history.page = page;
+  goHistoryPage(page);
+};
+
+// ==============================
+// INIT
+// ==============================
+
+document.addEventListener("DOMContentLoaded", () => {
+  ensureLayout();
+  loadAll(true);
+});
