@@ -1,4 +1,7 @@
-const API_BASE = window.location.origin;
+const API_BASE =
+  window.location.hostname.includes("github.io")
+    ? "https://funcional-s4vd.onrender.com"
+    : window.location.origin;
 
 const state = {
   loading: false,
