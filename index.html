@@ -1,25 +1,126 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <title>Top Picks Pro Premium</title>
 
-  <!-- Fuente PRO -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
 
-  <!-- TU CSS PRO -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand-block">
+          <span class="brand-kicker">PRO MODEL</span>
+          <h1>Top Picks Pro Premium</h1>
+          <p class="brand-subtitle">
+            Picks premium, catálogo de mercados, combinada del día e historial real
+          </p>
+        </div>
+      </div>
 
-  <!-- APP ROOT -->
-  <div id="app"></div>
+      <div class="topbar-right">
+        <div id="oddsInfo" class="topbar-info">
+          <span>Mercados de cuotas indexados: <strong>0</strong></span>
+        </div>
 
-  <!-- SCRIPT PRINCIPAL -->
+        <div id="metaInfo" class="topbar-info">
+          <div class="meta-grid">
+            <div><span>Generado:</span> <strong>--</strong></div>
+            <div><span>Lookahead:</span> <strong>--</strong></div>
+            <div><span>Picks:</span> <strong>0</strong></div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="refreshBtn" class="btn btn-primary">Actualizar</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="statusbar">
+      <div id="loader" class="loader" style="display: none;">Cargando picks...</div>
+      <div id="statusText" class="status-text">Inicializando...</div>
+    </section>
+
+    <main class="dashboard-layout">
+      <section class="stats-grid">
+        <article class="stat-card">
+          <span class="stat-label">Aciertos</span>
+          <strong id="statHits">0/0</strong>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-label">Efectividad</span>
+          <strong id="statEffectiveness">0%</strong>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-label">Profit</span>
+          <strong id="statProfit">0.00u</strong>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-label">Pendientes</span>
+          <strong id="statPending">0</strong>
+        </article>
+
+        <article class="stat-card">
+          <span class="stat-label">Total picks</span>
+          <strong id="statTotalPicks">0</strong>
+        </article>
+
+        <article class="stat-card tier-stat premium">
+          <span class="stat-label">Premium</span>
+          <strong id="countPremium">0</strong>
+        </article>
+
+        <article class="stat-card tier-stat strong">
+          <span class="stat-label">Strong</span>
+          <strong id="countStrong">0</strong>
+        </article>
+
+        <article class="stat-card tier-stat medium">
+          <span class="stat-label">Medium</span>
+          <strong id="countMedium">0</strong>
+        </article>
+
+        <article class="stat-card tier-stat risky">
+          <span class="stat-label">Risky</span>
+          <strong id="countRisky">0</strong>
+        </article>
+      </section>
+
+      <section id="comboOfDay"></section>
+
+      <section class="tabs-panel">
+        <div class="tabs-header">
+          <button class="tab-btn active" data-tab="premium">Premium</button>
+          <button class="tab-btn" data-tab="strong">Strong</button>
+          <button class="tab-btn" data-tab="medium">Medium</button>
+          <button class="tab-btn" data-tab="risky">Risky</button>
+        </div>
+      </section>
+
+      <section id="mainContent"></section>
+
+      <section id="matchCatalog"></section>
+
+      <section class="history-actions">
+        <button id="reloadHistoryBtn" class="btn btn-secondary">Recargar historial</button>
+      </section>
+
+      <section id="historySection"></section>
+    </main>
+  </div>
+
   <script src="app.js"></script>
-
 </body>
 </html>
