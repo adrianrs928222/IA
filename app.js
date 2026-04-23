@@ -1,87 +1,598 @@
-const API_URL = "https://funcional-s4vd.onrender.com";
+const API_BASE = window.location.origin;
 
 const state = {
-  picks: [],
-  combo: null,
-  groups: { alta: [], media: [], intermedia: [] },
-  stats: {
-    hits: "0/0",
-    effectiveness: 0,
-    profit: 0,
-    total_picks: 0,
-    pending: 0,
-  },
-  history: {
-    items: [],
-    page: 1,
-    total_pages: 1,
-    total_items: 0,
-  },
-  leagueFilter: "all",
-  riskFilter: "all",
   loading: false,
+  refreshing: false,
+  payload: null,
+  history: null,
+  odds: null,
+  historyPage: 1,
+  historyPageSize: 12,
+  selectedTab: "premium",
+  selectedMatchIndex: 0,
 };
 
-// ==============================
-// HELPERS
-// ==============================
+document.addEventListener("DOMContentLoaded", () => {
+  bindEvents();
+  initApp();
+});
 
-function safe(v, fallback = "-") {
-  return v === null || v === undefined || v === "" ? fallback : v;
+function bindEvents() {
+  const refreshBtn = document.getElementById("refreshBtn");
+  const reloadHistoryBtn = document.getElementById("reloadHistoryBtn");
+  const tabButtons = document.querySelectorAll("[data-tab]");
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      loadPicks(true);
+    });
+  }
+
+  if (reloadHistoryBtn) {
+    reloadHistoryBtn.addEventListener("click", () => {
+      loadHistory(state.historyPage);
+    });
+  }
+
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab || "premium";
+      state.selectedTab = tab;
+      updateTabButtons();
+      renderMainSections();
+    });
+  });
 }
 
-function formatOdds(v) {
-  if (v === null || v === undefined || v === "") return "-";
-  const n = Number(v);
-  if (Number.isNaN(n)) return "-";
-  return n.toFixed(2);
+async function initApp() {
+  setStatus("Cargando picks y datos del panel...");
+  await Promise.all([
+    loadPicks(false),
+    loadHistory(1),
+    loadOdds(),
+  ]);
+  setStatus("Datos cargados");
 }
 
-function formatProfit(v) {
-  const n = Number(v || 0);
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}u`;
+async function apiGet(path) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  return res.json();
 }
 
-function pickTypeLabel(type) {
-  switch (type) {
-    case "winner":
-      return "Ganador";
-    case "double_chance":
-      return "Doble oportunidad";
-    case "over_2_5":
-      return "+2.5 goles";
-    case "under_2_5":
-      return "-2.5 goles";
-    case "under_3_5":
-      return "-3.5 goles";
-    case "btts_yes":
-      return "BTTS Sí";
-    case "btts_no":
-      return "BTTS No";
-    case "team_cards":
-      return "Tarjetas";
-    default:
-      return "Pick";
+async function loadPicks(forceRefresh = false) {
+  try {
+    state.loading = !forceRefresh;
+    state.refreshing = forceRefresh;
+
+    renderLoadingState();
+
+    const payload = await apiGet(`/api/picks?force_refresh=${forceRefresh ? "true" : "false"}`);
+    state.payload = payload;
+
+    if (!Array.isArray(state.payload?.match_catalog)) {
+      state.payload.match_catalog = [];
+    }
+
+    if (state.selectedMatchIndex >= state.payload.match_catalog.length) {
+      state.selectedMatchIndex = 0;
+    }
+
+    renderAll();
+  } catch (error) {
+    console.error("Error loading picks:", error);
+    renderError("No se pudieron cargar los picks.");
+  } finally {
+    state.loading = false;
+    state.refreshing = false;
+    renderLoadingState();
   }
 }
 
-function confidenceLabel(confidence) {
-  if (confidence >= 80) return "Confianza alta";
-  if (confidence >= 72) return "Confianza media";
-  return "Confianza intermedia";
+async function loadHistory(page = 1) {
+  try {
+    const payload = await apiGet(`/api/history?page=${page}&page_size=${state.historyPageSize}`);
+    state.history = payload;
+    state.historyPage = payload.page || 1;
+    renderHistory();
+  } catch (error) {
+    console.error("Error loading history:", error);
+    renderHistoryError("No se pudo cargar el historial.");
+  }
 }
 
-function confidenceClass(confidence) {
-  if (confidence >= 80) return "alta";
-  if (confidence >= 72) return "media";
-  return "intermedia";
+async function loadOdds() {
+  try {
+    const payload = await apiGet(`/api/odds`);
+    state.odds = payload;
+    renderOddsInfo();
+  } catch (error) {
+    console.error("Error loading odds:", error);
+    renderOddsInfoError();
+  }
 }
 
-function statusLabel(status) {
-  if (status === "won") return "Acertado";
-  if (status === "lost") return "Perdido";
-  return "Pendiente";
+function renderAll() {
+  updateTabButtons();
+  renderHeaderStats();
+  renderComboOfDay();
+  renderMainSections();
+  renderMatchCatalog();
+  renderMetaInfo();
+}
+function renderLoadingState() {
+  const loader = document.getElementById("loader");
+  const refreshBtn = document.getElementById("refreshBtn");
+
+  if (loader) {
+    loader.style.display = state.loading || state.refreshing ? "flex" : "none";
+    loader.textContent = state.refreshing
+      ? "Actualizando picks reales..."
+      : "Cargando picks...";
+  }
+
+  if (refreshBtn) {
+    refreshBtn.disabled = state.loading || state.refreshing;
+    refreshBtn.textContent = state.refreshing ? "Actualizando..." : "Actualizar";
+  }
+}
+
+function renderError(message) {
+  const main = document.getElementById("mainContent");
+  if (!main) return;
+
+  main.innerHTML = `
+    <section class="panel error-panel">
+      <h2>Error</h2>
+      <p>${escapeHtml(message)}</p>
+    </section>
+  `;
+}
+
+function setStatus(message) {
+  const el = document.getElementById("statusText");
+  if (el) {
+    el.textContent = message;
+  }
+}
+
+function updateTabButtons() {
+  const tabButtons = document.querySelectorAll("[data-tab]");
+  tabButtons.forEach((btn) => {
+    const isActive = btn.dataset.tab === state.selectedTab;
+    btn.classList.toggle("active", isActive);
+  });
+}
+
+function renderHeaderStats() {
+  const payload = state.payload || {};
+  const stats = payload.dashboard_stats || {};
+  const groups = payload.groups || {};
+
+  setText("statHits", stats.hits || "0/0");
+  setText("statEffectiveness", formatPercent(stats.effectiveness));
+  setText("statProfit", formatUnits(stats.profit));
+  setText("statPending", String(stats.pending ?? 0));
+  setText("statTotalPicks", String(stats.total_picks ?? payload.count ?? 0));
+
+  setText("countPremium", String((groups.premium || []).length));
+  setText("countStrong", String((groups.strong || []).length));
+  setText("countMedium", String((groups.medium || []).length));
+  setText("countRisky", String((groups.risky || []).length));
+}
+
+function renderComboOfDay() {
+  const comboWrap = document.getElementById("comboOfDay");
+  if (!comboWrap) return;
+
+  const combo = state.payload?.combo_of_day || {};
+  const picks = Array.isArray(combo.picks) ? combo.picks : [];
+
+  if (!picks.length) {
+    comboWrap.innerHTML = `
+      <div class="panel">
+        <h2>Combinada del día</h2>
+        <p>No hay combinada suficiente hoy. El modelo ha preferido no forzar una combinación artificial.</p>
+      </div>
+    `;
+    return;
+  }
+
+  comboWrap.innerHTML = `
+    <div class="panel combo-panel">
+      <div class="panel-head">
+        <h2>Combinada del día</h2>
+        <span class="badge">${escapeHtml(String(combo.size || picks.length))} selecciones</span>
+      </div>
+
+      <div class="combo-summary">
+        <div class="metric-chip">
+          <span class="metric-label">Cuota estimada</span>
+          <strong>${combo.estimated_total_odds ? formatOdds(combo.estimated_total_odds) : "--"}</strong>
+        </div>
+        <div class="metric-chip">
+          <span class="metric-label">Confianza media</span>
+          <strong>${formatPercent(combo.confidence)}</strong>
+        </div>
+      </div>
+
+      <div class="pick-list">
+        ${picks.map(renderPickCard).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderMainSections() {
+  const wrap = document.getElementById("mainContent");
+  if (!wrap) return;
+
+  const payload = state.payload || {};
+  const groups = payload.groups || {};
+  let picks = [];
+
+  if (state.selectedTab === "premium") picks = groups.premium || [];
+  if (state.selectedTab === "strong") picks = groups.strong || [];
+  if (state.selectedTab === "medium") picks = groups.medium || [];
+  if (state.selectedTab === "risky") picks = groups.risky || [];
+
+  const titleMap = {
+    premium: "Premium Picks",
+    strong: "Strong Picks",
+    medium: "Picks medios",
+    risky: "Picks de riesgo",
+  };
+
+  wrap.innerHTML = `
+    <section class="panel">
+      <div class="panel-head">
+        <h2>${titleMap[state.selectedTab] || "Picks"}</h2>
+        <span class="badge">${picks.length}</span>
+      </div>
+
+      ${
+        picks.length
+          ? `<div class="pick-list">${picks.map(renderPickCard).join("")}</div>`
+          : `<p>No hay picks en esta categoría ahora mismo.</p>`
+      }
+    </section>
+  `;
+}
+function renderMatchCatalog() {
+  const wrap = document.getElementById("matchCatalog");
+  if (!wrap) return;
+
+  const catalog = state.payload?.match_catalog || [];
+
+  if (!catalog.length) {
+    wrap.innerHTML = `
+      <section class="panel">
+        <h2>Catálogo de mercados</h2>
+        <p>No hay partidos cargados ahora mismo.</p>
+      </section>
+    `;
+    return;
+  }
+
+  const tabs = catalog
+    .map((item, index) => {
+      const active = index === state.selectedMatchIndex ? "active" : "";
+      return `
+        <button class="match-tab ${active}" data-match-index="${index}">
+          <span>${escapeHtml(item.match || "Partido")}</span>
+          <small>${escapeHtml(item.time_local || "--")}</small>
+        </button>
+      `;
+    })
+    .join("");
+
+  const selected = catalog[state.selectedMatchIndex] || catalog[0];
+  const markets = Array.isArray(selected?.markets) ? selected.markets : [];
+
+  wrap.innerHTML = `
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Catálogo de mercados por partido</h2>
+        <span class="badge">${catalog.length} partidos</span>
+      </div>
+
+      <div class="match-tabs">
+        ${tabs}
+      </div>
+
+      <div class="match-detail">
+        <div class="match-detail-head">
+          <h3>${escapeHtml(selected.match || "Partido")}</h3>
+          <div class="match-meta-inline">
+            <span>${escapeHtml(selected.league || "--")}</span>
+            <span>${escapeHtml(selected.time_local || "--")}</span>
+            <span>${escapeHtml(selected.source || "--")}</span>
+          </div>
+        </div>
+
+        <div class="market-grid">
+          ${markets.map(renderMarketCard).join("")}
+        </div>
+      </div>
+    </section>
+  `;
+
+  bindMatchTabEvents();
+}
+
+function bindMatchTabEvents() {
+  document.querySelectorAll("[data-match-index]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const nextIndex = Number(btn.dataset.matchIndex || 0);
+      state.selectedMatchIndex = nextIndex;
+      renderMatchCatalog();
+    });
+  });
+}
+
+function renderHistory() {
+  const wrap = document.getElementById("historySection");
+  if (!wrap) return;
+
+  const history = state.history || {};
+  const items = Array.isArray(history.items) ? history.items : [];
+
+  wrap.innerHTML = `
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Historial</h2>
+        <span class="badge">${history.total_items || 0}</span>
+      </div>
+
+      ${
+        items.length
+          ? `
+          <div class="history-list">
+            ${items.map(renderHistoryCard).join("")}
+          </div>
+
+          <div class="pagination">
+            <button id="prevHistoryPage" ${history.page <= 1 ? "disabled" : ""}>Anterior</button>
+            <span>Página ${history.page || 1} / ${history.total_pages || 1}</span>
+            <button id="nextHistoryPage" ${history.page >= history.total_pages ? "disabled" : ""}>Siguiente</button>
+          </div>
+        `
+          : `<p>No hay historial todavía.</p>`
+      }
+    </section>
+  `;
+
+  const prevBtn = document.getElementById("prevHistoryPage");
+  const nextBtn = document.getElementById("nextHistoryPage");
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", () => {
+      if ((history.page || 1) > 1) {
+        loadHistory((history.page || 1) - 1);
+      }
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      if ((history.page || 1) < (history.total_pages || 1)) {
+        loadHistory((history.page || 1) + 1);
+      }
+    });
+  }
+}
+
+function renderHistoryError(message) {
+  const wrap = document.getElementById("historySection");
+  if (!wrap) return;
+
+  wrap.innerHTML = `
+    <section class="panel error-panel">
+      <h2>Historial</h2>
+      <p>${escapeHtml(message)}</p>
+    </section>
+  `;
+}
+
+function renderOddsInfo() {
+  const el = document.getElementById("oddsInfo");
+  if (!el) return;
+
+  const count = state.odds?.count ?? 0;
+  el.innerHTML = `<span>Mercados de cuotas indexados: <strong>${count}</strong></span>`;
+}
+
+function renderOddsInfoError() {
+  const el = document.getElementById("oddsInfo");
+  if (!el) return;
+  el.innerHTML = `<span>Mercados de cuotas indexados: <strong>0</strong></span>`;
+}
+
+function renderMetaInfo() {
+  const el = document.getElementById("metaInfo");
+  if (!el) return;
+
+  const payload = state.payload || {};
+  el.innerHTML = `
+    <div class="meta-grid">
+      <div><span>Generado:</span> <strong>${formatDateTime(payload.generated_at)}</strong></div>
+      <div><span>Lookahead:</span> <strong>${payload.lookahead_hours ?? "--"}h</strong></div>
+      <div><span>Picks:</span> <strong>${payload.count ?? 0}</strong></div>
+    </div>
+  `;
+}
+function renderPickCard(pick) {
+  const tier = pick.tier || "medium";
+  const valueEdge = pick.value_edge;
+  const oddsText = pick.odds_estimate ? formatOdds(pick.odds_estimate) : "--";
+  const edgeText = valueEdge === null || valueEdge === undefined ? "--" : `${valueEdge}%`;
+  const bookmaker = pick.bookmaker || "Modelo";
+  const resultClass = statusClass(pick.status);
+
+  return `
+    <article class="pick-card ${tier}">
+      <div class="pick-card-top">
+        <div>
+          <h3>${escapeHtml(pick.match || "Partido")}</h3>
+          <div class="pick-meta">
+            <span>${escapeHtml(pick.league || "--")}</span>
+            <span>${escapeHtml(pick.time_local || "--")}</span>
+            <span>${escapeHtml(pick.pick_type || "--")}</span>
+          </div>
+        </div>
+        <div class="pick-badges">
+          <span class="tier-badge tier-${escapeHtml(tier)}">${escapeHtml(tier)}</span>
+          <span class="status-badge ${resultClass}">${escapeHtml(pick.status || "pending")}</span>
+        </div>
+      </div>
+
+      <div class="pick-main">
+        <div class="pick-selection">${escapeHtml(pick.pick || "--")}</div>
+        <div class="pick-explainer">${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}</div>
+      </div>
+
+      <div class="pick-metrics">
+        <div class="metric-box">
+          <span>Confianza</span>
+          <strong>${formatPercent(pick.confidence)}</strong>
+        </div>
+        <div class="metric-box">
+          <span>Cuota</span>
+          <strong>${oddsText}</strong>
+        </div>
+        <div class="metric-box">
+          <span>Stake</span>
+          <strong>${pick.stake ?? 0}</strong>
+        </div>
+        <div class="metric-box">
+          <span>Edge</span>
+          <strong>${edgeText}</strong>
+        </div>
+      </div>
+
+      <div class="pick-footer">
+        <span>Bookmaker: ${escapeHtml(bookmaker)}</span>
+        <span>Fuente cuota: ${escapeHtml(pick.odds_source || "--")}</span>
+        <span>Combo: ${pick.recommended_for_combo ? "Sí" : "No"}</span>
+      </div>
+    </article>
+  `;
+}
+
+function renderMarketCard(market) {
+  const edgeText =
+    market.value_edge === null || market.value_edge === undefined
+      ? "--"
+      : `${market.value_edge}%`;
+
+  return `
+    <article class="market-card tier-${escapeHtml(market.tier || "medium")}">
+      <div class="market-head">
+        <h4>${escapeHtml(market.pick || "--")}</h4>
+        <span class="mini-badge">${escapeHtml(market.pick_type || "--")}</span>
+      </div>
+
+      <div class="market-grid-inner">
+        <div><span>Confianza</span><strong>${formatPercent(market.confidence)}</strong></div>
+        <div><span>Cuota</span><strong>${market.odds_estimate ? formatOdds(market.odds_estimate) : "--"}</strong></div>
+        <div><span>Stake</span><strong>${market.stake ?? 0}</strong></div>
+        <div><span>Edge</span><strong>${edgeText}</strong></div>
+      </div>
+
+      <div class="market-flags">
+        <span>Tier: ${escapeHtml(market.tier || "--")}</span>
+        <span>Trackable: ${market.trackable ? "Sí" : "No"}</span>
+        <span>Combo: ${market.recommended_for_combo ? "Sí" : "No"}</span>
+      </div>
+
+      <p class="market-text">${escapeHtml(market.tipster_explanation || "Sin explicación disponible.")}</p>
+    </article>
+  `;
+}
+
+function renderHistoryCard(item) {
+  const resultClass = statusClass(item.status);
+
+  return `
+    <article class="history-card ${resultClass}">
+      <div class="history-card-top">
+        <h4>${escapeHtml(item.match || "--")}</h4>
+        <span>${escapeHtml(item.history_date || "--")}</span>
+      </div>
+
+      <div class="history-meta">
+        <span>${escapeHtml(item.league || "--")}</span>
+        <span>${escapeHtml(item.time_local || "--")}</span>
+        <span>${escapeHtml(item.pick_type || "--")}</span>
+      </div>
+
+      <div class="history-main">
+        <strong>${escapeHtml(item.pick || "--")}</strong>
+      </div>
+
+      <div class="history-footer">
+        <span>Estado: ${escapeHtml(item.status || "pending")}</span>
+        <span>Marcador: ${escapeHtml(item.score_line || "--")}</span>
+        <span>Cuota: ${item.odds_estimate ? formatOdds(item.odds_estimate) : "--"}</span>
+      </div>
+    </article>
+  `;
+}
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = value;
+  }
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--";
+  }
+  return `${Number(value).toFixed(0)}%`;
+}
+
+function formatUnits(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--";
+  }
+  const num = Number(value);
+  return `${num > 0 ? "+" : ""}${num.toFixed(2)}u`;
+}
+
+function formatOdds(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--";
+  }
+  return Number(value).toFixed(2);
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return value;
+  }
 }
 
 function statusClass(status) {
@@ -90,528 +601,11 @@ function statusClass(status) {
   return "pending";
 }
 
-function riskAllowed(pick) {
-  if (state.riskFilter === "all") return true;
-  if (state.riskFilter === "safe") return pick.confidence >= 78;
-  if (state.riskFilter === "medium") return pick.confidence >= 72 && pick.confidence < 78;
-  if (state.riskFilter === "aggressive") return pick.confidence < 72;
-  return true;
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
-
-function leagueAllowed(pick) {
-  if (state.leagueFilter === "all") return true;
-  return pick.league === state.leagueFilter;
-}
-
-function filterPicks(picks) {
-  return (picks || []).filter((p) => leagueAllowed(p) && riskAllowed(p));
-}
-
-// ==============================
-// FETCH
-// ==============================
-
-async function fetchJSON(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-  return await res.json();
-}
-
-async function fetchPicks(forceRefresh = true) {
-  const url = forceRefresh
-    ? `${API_URL}/api/picks?force_refresh=true`
-    : `${API_URL}/api/picks`;
-
-  return fetchJSON(url);
-}
-
-async function fetchHistory(page = 1) {
-  return fetchJSON(`${API_URL}/api/history?page=${page}&page_size=12`);
-}
-
-async function loadAll(forceRefresh = true) {
-  try {
-    state.loading = true;
-    renderLoading();
-
-    const [picksData, historyData] = await Promise.all([
-      fetchPicks(forceRefresh),
-      fetchHistory(state.history.page || 1),
-    ]);
-
-    state.picks = picksData.picks || [];
-    state.combo = picksData.combo_of_day || null;
-    state.groups = picksData.groups || { alta: [], media: [], intermedia: [] };
-    state.stats = picksData.dashboard_stats || {
-      hits: "0/0",
-      effectiveness: 0,
-      profit: 0,
-      total_picks: 0,
-      pending: 0,
-    };
-
-    state.history = historyData || {
-      items: [],
-      page: 1,
-      total_pages: 1,
-      total_items: 0,
-    };
-
-    state.loading = false;
-    renderAll();
-  } catch (err) {
-    console.error(err);
-    state.loading = false;
-    renderError("Error cargando datos");
-  }
-}
-
-async function goHistoryPage(page) {
-  try {
-    const historyData = await fetchHistory(page);
-    state.history = historyData;
-    renderHistory();
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// ==============================
-// ROOT / STRUCTURE
-// ==============================
-
-function ensureLayout() {
-  const app = document.getElementById("app");
-  if (!app) return null;
-
-  if (!document.getElementById("topbar")) {
-    app.innerHTML = `
-      <div class="page-wrap">
-        <section class="topbar" id="topbar">
-          <div class="brand">
-            <div class="brand-logo">TP</div>
-            <div>
-              <div class="brand-kicker">TOP PICKS</div>
-              <h1>Pro Premium</h1>
-              <p>Picks inteligentes, confianza real y análisis tipster.</p>
-            </div>
-          </div>
-
-          <div class="top-nav">
-            <span>⚽ Fútbol</span>
-            <span>🔥 Combi del día</span>
-            <span>📜 Historial</span>
-            <span>💎 Premium</span>
-          </div>
-        </section>
-
-        <section class="hero-boxes">
-          <div class="hero-box">
-            <div class="hero-title">COBERTURA</div>
-            <div class="hero-value">LaLiga · Segunda · Champions</div>
-          </div>
-          <div class="hero-box">
-            <div class="hero-title">MODO</div>
-            <div class="hero-value">Tipster Pro</div>
-          </div>
-          <div class="hero-box">
-            <div class="hero-title">ACTUALIZACIÓN</div>
-            <div class="hero-value">Automática</div>
-          </div>
-          <div class="hero-box">
-            <div class="hero-title">CONFIANZA</div>
-            <div class="hero-value">0%-100%</div>
-          </div>
-        </section>
-
-        <section class="filters" id="filters"></section>
-
-        <section class="meta-bar" id="metaBar"></section>
-
-        <section class="section-block">
-          <h2>Resumen</h2>
-          <div class="stats-grid" id="stats"></div>
-        </section>
-
-        <section class="section-block">
-          <div id="combo"></div>
-        </section>
-
-        <section class="section-block">
-          <h2>Picks</h2>
-          <div class="cards-grid" id="picks"></div>
-        </section>
-
-        <section class="section-block">
-          <h2>Historial</h2>
-          <div id="history"></div>
-        </section>
-      </div>
-    `;
-  }
-
-  return app;
-}
-
-// ==============================
-// RENDER GENERAL
-// ==============================
-
-function renderLoading() {
-  ensureLayout();
-  const picksEl = document.getElementById("picks");
-  if (picksEl) {
-    picksEl.innerHTML = `<div class="empty-box">Cargando picks...</div>`;
-  }
-}
-
-function renderError(message) {
-  ensureLayout();
-  const picksEl = document.getElementById("picks");
-  if (picksEl) {
-    picksEl.innerHTML = `<div class="empty-box">${message}</div>`;
-  }
-}
-
-function renderAll() {
-  ensureLayout();
-  renderFilters();
-  renderMetaBar();
-  renderStats();
-  renderCombo();
-  renderPicks();
-  renderHistory();
-}
-
-// ==============================
-// FILTERS
-// ==============================
-
-function renderFilters() {
-  const el = document.getElementById("filters");
-  if (!el) return;
-
-  el.innerHTML = `
-    <select id="leagueFilter">
-      <option value="all">Todas las ligas</option>
-      <option value="LaLiga">LaLiga</option>
-      <option value="Segunda División">Segunda División</option>
-      <option value="Champions League">Champions League</option>
-    </select>
-
-    <select id="riskFilter">
-      <option value="all">Todos los riesgos</option>
-      <option value="safe">Seguros</option>
-      <option value="medium">Medios</option>
-      <option value="aggressive">Agresivos</option>
-    </select>
-
-    <button id="refreshBtn">Refresh</button>
-  `;
-
-  const leagueSelect = document.getElementById("leagueFilter");
-  const riskSelect = document.getElementById("riskFilter");
-  const refreshBtn = document.getElementById("refreshBtn");
-
-  leagueSelect.value = state.leagueFilter;
-  riskSelect.value = state.riskFilter;
-
-  leagueSelect.onchange = (e) => {
-    state.leagueFilter = e.target.value;
-    renderPicks();
-  };
-
-  riskSelect.onchange = (e) => {
-    state.riskFilter = e.target.value;
-    renderPicks();
-  };
-
-  refreshBtn.onclick = () => loadAll(true);
-}
-
-// ==============================
-// META BAR
-// ==============================
-
-function renderMetaBar() {
-  const el = document.getElementById("metaBar");
-  if (!el) return;
-
-  el.innerHTML = `
-    ⚡ Picks: ${state.picks.length} · Actualizado automáticamente · Ventana: 168h
-  `;
-}
-
-// ==============================
-// STATS
-// ==============================
-
-function renderStats() {
-  const el = document.getElementById("stats");
-  if (!el) return;
-
-  el.innerHTML = `
-    <div class="stat-card">
-      <div class="stat-label">ACIERTOS</div>
-      <div class="stat-value">${safe(state.stats.hits, "0/0")}</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-label">EFECTIVIDAD</div>
-      <div class="stat-value">${safe(state.stats.effectiveness, 0)}%</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-label">BENEFICIO</div>
-      <div class="stat-value">${formatProfit(state.stats.profit)}</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-label">PICKS</div>
-      <div class="stat-value">${safe(state.stats.total_picks, 0)}</div>
-    </div>
-  `;
-}
-
-// ==============================
-// COMBO
-// ==============================
-
-function comboItemHTML(p) {
-  return `
-    <div class="combo-item">
-      <div class="combo-match">${safe(p.match)}</div>
-      <div class="combo-pick">${safe(p.pick)}</div>
-      <div class="combo-meta-line">
-        <span>💰 ${formatOdds(p.odds_estimate)}</span>
-        <span>🎯 ${safe(p.confidence, 0)}%</span>
-        <span>🏷 ${pickTypeLabel(p.pick_type)}</span>
-      </div>
-    </div>
-  `;
-}
-
-function renderCombo() {
-  const el = document.getElementById("combo");
-  if (!el) return;
-
-  if (!state.combo || !state.combo.picks || !state.combo.picks.length) {
-    el.innerHTML = `<div class="empty-box">No hay combinada disponible.</div>`;
-    return;
-  }
-
-  el.innerHTML = `
-    <div class="combo-box">
-      <h2>🔥 Combi del día</h2>
-
-      <div class="combo-summary">
-        <span class="pill">Picks: ${safe(state.combo.size, state.combo.picks.length)}</span>
-        <span class="pill">Cuota: ${formatOdds(state.combo.estimated_total_odds)}</span>
-        <span class="pill">Confianza media: ${safe(state.combo.confidence, 0)}%</span>
-      </div>
-
-      <div class="combo-list">
-        ${state.combo.picks.map(comboItemHTML).join("")}
-      </div>
-    </div>
-  `;
-}
-
-// ==============================
-// PICK CARD
-// ==============================
-
-function extraTagsHTML(p) {
-  let html = "";
-
-  if (p.btts) {
-    html += `<span class="mini-pill">BTTS: ${p.btts}</span>`;
-  }
-
-  if (p.over_2_5) {
-    html += `<span class="mini-pill">Over/Under: ${p.over_2_5}</span>`;
-  }
-
-  if (p.cards_team) {
-    html += `<span class="mini-pill">Tarjetas: ${p.cards_team} +${p.cards_line}</span>`;
-  }
-
-  if (p.bookmaker) {
-    html += `<span class="mini-pill">Casa: ${p.bookmaker}</span>`;
-  }
-
-  return html;
-}
-
-function valueBoxHTML(p) {
-  if (
-    p.model_confidence === null ||
-    p.model_confidence === undefined ||
-    p.book_confidence === null ||
-    p.book_confidence === undefined ||
-    p.value_edge === null ||
-    p.value_edge === undefined
-  ) {
-    return "";
-  }
-
-  const edgeSign = Number(p.value_edge) > 0 ? "+" : "";
-
-  return `
-    <div class="value-box">
-      <div>Nuestra confianza: ${p.model_confidence}%</div>
-      <div>Confianza del mercado: ${p.book_confidence}%</div>
-      <div>Ventaja: ${edgeSign}${p.value_edge}%</div>
-    </div>
-  `;
-}
-
-function pickCardHTML(p) {
-  return `
-    <div class="pick-card">
-      <div class="pick-top">
-        <div>
-          <div class="pick-league">${safe(p.league)}</div>
-          <div class="pick-match">${safe(p.match)}</div>
-        </div>
-        <div class="pick-time-box">
-          <div>${safe(p.time_local)}</div>
-        </div>
-      </div>
-
-      <div class="pick-badges">
-        <span class="badge neutral">${pickTypeLabel(p.pick_type)}</span>
-        <span class="badge ${confidenceClass(p.confidence)}">${confidenceLabel(p.confidence)}</span>
-        <span class="badge ${statusClass(p.status)}">${statusLabel(p.status)}</span>
-        <span class="badge percent">${safe(p.confidence, 0)}%</span>
-      </div>
-
-      <div class="pick-main">
-        ${safe(p.pick)}
-      </div>
-
-      <div class="pick-meta">
-        <span>💰 Cuota: ${formatOdds(p.odds_estimate)}</span>
-        <span>🎯 Stake: ${safe(p.stake, 0)}/5</span>
-      </div>
-
-      <div class="pick-tags">
-        ${extraTagsHTML(p)}
-      </div>
-
-      ${valueBoxHTML(p)}
-
-      ${
-        p.score_line
-          ? `<div class="score-line">Marcador: ${p.score_line}</div>`
-          : ""
-      }
-
-      <div class="pick-explanation">
-        ${safe(p.tipster_explanation, "")}
-      </div>
-    </div>
-  `;
-}
-
-function renderPicks() {
-  const el = document.getElementById("picks");
-  if (!el) return;
-
-  const filtered = filterPicks(state.picks);
-
-  if (!filtered.length) {
-    el.innerHTML = `<div class="empty-box">No hay picks con esos filtros.</div>`;
-    return;
-  }
-
-  el.innerHTML = filtered.map(pickCardHTML).join("");
-}
-
-// ==============================
-// HISTORY
-// ==============================
-
-function historyCardHTML(p) {
-  return `
-    <div class="history-card">
-      <div class="history-left">
-        <div class="history-match">${safe(p.match)}</div>
-        <div class="history-sub">${safe(p.pick)} · ${safe(p.league)} · ${safe(p.time_local)}</div>
-        <div class="history-sub">
-          Cuota: ${formatOdds(p.odds_estimate)} · Stake: ${safe(p.stake, 0)}/5 · ${safe(p.history_date)}
-        </div>
-        ${
-          p.score_line
-            ? `<div class="history-sub">Marcador: ${p.score_line}</div>`
-            : ""
-        }
-      </div>
-      <div class="history-right">
-        <span class="badge ${statusClass(p.status)}">${statusLabel(p.status)}</span>
-      </div>
-    </div>
-  `;
-}
-
-function renderHistoryPagination() {
-  const totalPages = state.history.total_pages || 1;
-  const current = state.history.page || 1;
-
-  if (totalPages <= 1) return "";
-
-  let buttons = "";
-
-  const prevDisabled = current <= 1 ? "disabled" : "";
-  const nextDisabled = current >= totalPages ? "disabled" : "";
-
-  buttons += `<button ${prevDisabled} onclick="window.__goHistory(${current - 1})">←</button>`;
-
-  for (let i = 1; i <= totalPages; i++) {
-    if (i === current) {
-      buttons += `<button class="active" onclick="window.__goHistory(${i})">${i}</button>`;
-    } else {
-      buttons += `<button onclick="window.__goHistory(${i})">${i}</button>`;
-    }
-  }
-
-  buttons += `<button ${nextDisabled} onclick="window.__goHistory(${current + 1})">→</button>`;
-
-  return `<div class="pagination">${buttons}</div>`;
-}
-
-function renderHistory() {
-  const el = document.getElementById("history");
-  if (!el) return;
-
-  const items = state.history.items || [];
-
-  if (!items.length) {
-    el.innerHTML = `<div class="empty-box">No hay historial todavía.</div>`;
-    return;
-  }
-
-  el.innerHTML = `
-    <div class="history-list">
-      ${items.map(historyCardHTML).join("")}
-    </div>
-    ${renderHistoryPagination()}
-  `;
-}
-
-window.__goHistory = function (page) {
-  if (page < 1 || page > (state.history.total_pages || 1)) return;
-  state.history.page = page;
-  goHistoryPage(page);
-};
-
-// ==============================
-// INIT
-// ==============================
-
-document.addEventListener("DOMContentLoaded", () => {
-  ensureLayout();
-  loadAll(true);
-});
