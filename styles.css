@@ -75,7 +75,9 @@ button {
 .tabs-panel,
 .pick-card,
 .market-card,
-.history-card {
+.history-card,
+.betslip-card,
+.bet-market-card {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -418,7 +420,9 @@ button {
 
 .pick-card,
 .market-card,
-.history-card {
+.history-card,
+.betslip-card,
+.bet-market-card {
   background:
     linear-gradient(180deg, rgba(19, 43, 92, 0.9), rgba(9, 23, 50, 0.95));
   border: 1px solid rgba(146, 173, 255, 0.14);
@@ -426,7 +430,8 @@ button {
   box-shadow: var(--shadow-soft);
 }
 
-.pick-card {
+.pick-card,
+.history-card {
   padding: 18px;
 }
 
@@ -462,7 +467,9 @@ button {
 .history-footer span,
 .pick-footer span,
 .match-meta-inline span,
-.market-flags span {
+.market-flags span,
+.betslip-meta span,
+.bet-extra-flags span {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(146, 173, 255, 0.08);
   border-radius: 999px;
@@ -480,7 +487,8 @@ button {
 
 .tier-badge,
 .status-badge,
-.mini-badge {
+.mini-badge,
+.betslip-label {
   padding: 8px 10px;
   font-size: 11px;
   text-transform: uppercase;
@@ -560,7 +568,8 @@ button {
   margin-top: 16px;
 }
 
-.market-card {
+.market-card,
+.bet-market-card {
   padding: 16px;
 }
 
@@ -619,10 +628,6 @@ button {
   padding: 16px;
 }
 
-.history-card {
-  padding: 16px;
-}
-
 .history-card.won {
   border-color: rgba(34, 197, 94, 0.28);
 }
@@ -674,6 +679,191 @@ button {
 #matchCatalog:empty,
 #historySection:empty {
   display: none;
+}
+
+/* =========================================================
+   BETSLIP STYLE
+   ========================================================= */
+
+.betslip-card,
+.bet-market-card {
+  background:
+    linear-gradient(180deg, rgba(20, 47, 101, 0.94), rgba(8, 20, 46, 0.96));
+  border: 1px solid rgba(147, 173, 255, 0.16);
+  border-radius: 24px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+  position: relative;
+  overflow: hidden;
+}
+
+.betslip-card::before,
+.bet-market-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(127, 107, 255, 0.08), transparent 40%);
+}
+
+.betslip-card {
+  padding: 18px;
+}
+
+.betslip-top,
+.bet-market-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.betslip-top-left h3,
+.bet-market-card h4 {
+  margin: 6px 0 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.bet-market-card h4 {
+  font-size: 18px;
+}
+
+.betslip-top-right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.betslip-label {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-weight: 800;
+  color: #d9d0ff;
+  background: rgba(127, 107, 255, 0.14);
+  border: 1px solid rgba(170, 150, 255, 0.18);
+}
+
+.betslip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.betslip-body {
+  margin-top: 16px;
+}
+
+.bet-market-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(7, 18, 42, 0.55);
+  border: 1px solid rgba(143, 168, 255, 0.08);
+}
+
+.bet-market-title {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.bet-selection-box {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(12, 28, 61, 0.92), rgba(7, 18, 40, 0.95));
+  border: 1px solid rgba(127, 107, 255, 0.18);
+}
+
+.bet-selection-box.compact {
+  margin-top: 12px;
+}
+
+.bet-selection-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.bet-selection-value {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+}
+
+.bet-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.bet-stats-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bet-stat {
+  background: rgba(8, 20, 45, 0.62);
+  border: 1px solid rgba(143, 168, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.bet-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bet-stat strong {
+  font-size: 22px;
+  color: white;
+}
+
+.bet-extra-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.betslip-explainer {
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+.builder-legs {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.builder-leg {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(146, 173, 255, 0.08);
+  color: #fff;
+  font-weight: 700;
 }
 
 @media (max-width: 1180px) {
@@ -763,17 +953,21 @@ button {
   .market-head,
   .history-card-top,
   .match-detail-head,
-  .panel-head {
+  .panel-head,
+  .betslip-top,
+  .bet-market-card-top {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .pick-badges {
+  .pick-badges,
+  .betslip-top-right {
     flex-direction: row;
     align-items: center;
   }
 
-  .pick-selection {
+  .pick-selection,
+  .bet-selection-value {
     font-size: 22px;
   }
 
@@ -803,6 +997,10 @@ button {
   .pagination button {
     width: 100%;
   }
+
+  .bet-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 420px) {
@@ -817,7 +1015,9 @@ button {
 
   .pick-card,
   .market-card,
-  .history-card {
+  .history-card,
+  .betslip-card,
+  .bet-market-card {
     padding: 14px;
   }
 
@@ -826,8 +1026,15 @@ button {
   .history-footer span,
   .pick-footer span,
   .match-meta-inline span,
-  .market-flags span {
+  .market-flags span,
+  .betslip-meta span,
+  .bet-extra-flags span {
     font-size: 11px;
     padding: 7px 9px;
+  }
+
+  .bet-stats-grid,
+  .bet-stats-grid.compact {
+    grid-template-columns: 1fr;
   }
 }
