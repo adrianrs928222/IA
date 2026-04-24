@@ -276,7 +276,7 @@ function renderMatchCatalog() {
   if (!catalog.length) {
     wrap.innerHTML = `
       <section class="panel">
-        <h2>Catálogo de mercados</h2>
+        <h2>Mercados por partido</h2>
         <p>No hay partidos cargados ahora mismo.</p>
       </section>
     `;
@@ -443,46 +443,30 @@ function renderPickCard(pick) {
         <div class="betslip-body">
           <div class="bet-selection-box">
             <span class="bet-selection-label">Selecciones</span>
+
             <div class="builder-legs">
-  ${(pick.selections || []).map(renderBuilderLeg).join("")}
-</div>
+              ${(pick.selections || []).map(renderBuilderLeg).join("")}
+            </div>
 
-function renderCardsSummary(pick) {
-  const cards = pick.cards || {};
-  const home = pick.home_team || "";
-  const away = pick.away_team || "";
-
-  if (!home || !away) return "";
-
-  const homeCards = cards[home];
-  const awayCards = cards[away];
-
-  if (homeCards === undefined && awayCards === undefined) return "";
-
-  return `
-    <div class="cards-summary-box">
-      <span class="cards-summary-title">Tarjetas estimadas</span>
-
-      <div class="cards-summary-grid">
-        <div class="cards-team-row">
-          <div class="yellow-card-icon"></div>
-          <div>
-            <span class="cards-team-name">${escapeHtml(home)}</span>
-            <strong>${homeCards ?? "--"}</strong>
+            ${renderCardsSummary(pick)}
           </div>
-        </div>
 
-        <div class="cards-team-row">
-          <div class="yellow-card-icon"></div>
-          <div>
-            <span class="cards-team-name">${escapeHtml(away)}</span>
-            <strong>${awayCards ?? "--"}</strong>
+          <div class="bet-stats-grid bet-stats-grid-clean">
+            <div class="bet-stat">
+              <span>Cuota total</span>
+              <strong>${pick.odds_estimate ? formatOdds(pick.odds_estimate) : "--"}</strong>
+            </div>
+            <div class="bet-stat">
+              <span>Nivel de confianza</span>
+              <strong>${formatPercent(pick.confidence)}</strong>
+            </div>
           </div>
+
+          <p class="betslip-explainer">${escapeHtml(pick.tipster_explanation || "")}</p>
         </div>
-      </div>
-    </div>
-  `;
-}
+      </article>
+    `;
+  }
 
   return `
     <article class="betslip-card ${escapeHtml(pick.tier || "medium")}">
@@ -546,6 +530,43 @@ function renderBuilderLeg(selection) {
   return `<div class="builder-leg">${escapeHtml(text)}</div>`;
 }
 
+function renderCardsSummary(pick) {
+  const cards = pick.cards || {};
+  const home = pick.home_team || "";
+  const away = pick.away_team || "";
+
+  if (!home || !away) return "";
+
+  const homeCards = cards[home];
+  const awayCards = cards[away];
+
+  if (homeCards === undefined && awayCards === undefined) return "";
+
+  return `
+    <div class="cards-summary-box">
+      <span class="cards-summary-title">Tarjetas estimadas</span>
+
+      <div class="cards-summary-grid">
+        <div class="cards-team-row">
+          <div class="yellow-card-icon"></div>
+          <div>
+            <span class="cards-team-name">${escapeHtml(home)}</span>
+            <strong>${homeCards ?? "--"}</strong>
+          </div>
+        </div>
+
+        <div class="cards-team-row">
+          <div class="yellow-card-icon"></div>
+          <div>
+            <span class="cards-team-name">${escapeHtml(away)}</span>
+            <strong>${awayCards ?? "--"}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderMarketCard(market) {
   return `
     <article class="bet-market-card tier-${escapeHtml(market.tier || "medium")}">
@@ -602,6 +623,7 @@ function renderHistoryCard(item) {
               <div class="builder-legs" style="margin-top:10px;">
                 ${(item.selections || []).map(renderBuilderLeg).join("")}
               </div>
+              ${renderCardsSummary(item)}
             `
             : `<strong>${escapeHtml(item.pick || "--")}</strong>`
         }
@@ -625,12 +647,6 @@ function setText(id, value) {
 function formatPercent(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "--";
   return `${Number(value).toFixed(0)}%`;
-}
-
-function formatUnits(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "--";
-  const num = Number(value);
-  return `${num > 0 ? "+" : ""}${num.toFixed(2)}u`;
 }
 
 function formatOdds(value) {
