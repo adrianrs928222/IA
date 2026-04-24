@@ -444,9 +444,10 @@ function renderPickCard(pick) {
           <div class="bet-selection-box">
             <span class="bet-selection-label">Selecciones</span>
             <div class="builder-legs">
-              ${(pick.selections || []).map(renderBuilderLeg).join("")}
-            </div>
-          </div>
+  ${(pick.selections || []).map(renderBuilderLeg).join("")}
+</div>
+
+${renderCardsSummary(pick)}
 
           <div class="bet-stats-grid bet-stats-grid-clean">
             <div class="bet-stat">
