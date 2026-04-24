@@ -43,21 +43,19 @@ function bindEvents() {
 }
 
 async function initApp() {
-  setStatus("Cargando picks y panel...");
+  setStatus("Cargando Tipster Tips Pro...");
   await Promise.allSettled([
     loadPicks(false),
     loadHistory(1),
     loadOdds(),
   ]);
-  setStatus("Datos cargados");
+  setStatus("Modelo actualizado");
 }
 
 async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
   });
 
   if (!res.ok) {
@@ -142,9 +140,7 @@ function renderLoadingState() {
 
   if (loader) {
     loader.style.display = state.loading || state.refreshing ? "flex" : "none";
-    loader.textContent = state.refreshing
-      ? "Actualizando picks..."
-      : "Cargando picks...";
+    loader.textContent = state.refreshing ? "Actualizando picks..." : "Cargando picks...";
   }
 
   if (refreshBtn) {
@@ -167,9 +163,7 @@ function renderError(message) {
 
 function setStatus(message) {
   const el = document.getElementById("statusText");
-  if (el) {
-    el.textContent = message;
-  }
+  if (el) el.textContent = message;
 }
 
 function updateTabButtons() {
@@ -185,7 +179,7 @@ function renderHeaderStats() {
 
   setText("statHits", stats.hits || "0/0");
   setText("statEffectiveness", formatPercent(stats.effectiveness));
-  setText("statProfit", formatUnits(stats.profit));
+  setText("statProfit", "0.00u");
   setText("statPending", String(stats.pending ?? 0));
   setText("statTotalPicks", String(payload.count ?? stats.total_picks ?? 0));
 
@@ -227,7 +221,7 @@ function renderComboOfDay() {
           <strong>${combo.estimated_total_odds ? formatOdds(combo.estimated_total_odds) : "--"}</strong>
         </div>
         <div class="metric-chip">
-          <span class="metric-label">Confianza media</span>
+          <span class="metric-label">Nivel de confianza</span>
           <strong>${formatPercent(combo.confidence)}</strong>
         </div>
       </div>
@@ -304,7 +298,7 @@ function renderMatchCatalog() {
   wrap.innerHTML = `
     <section class="panel">
       <div class="panel-head">
-        <h2>Catálogo de mercados por partido</h2>
+        <h2>Mercados por partido</h2>
         <span class="badge">${catalog.length} partidos</span>
       </div>
 
@@ -398,6 +392,7 @@ function renderHistoryError(message) {
 function renderOddsInfo() {
   const el = document.getElementById("oddsInfo");
   if (!el) return;
+
   const count = state.odds?.count ?? 0;
   el.innerHTML = `<span>Mercados de cuotas indexados: <strong>${count}</strong></span>`;
 }
@@ -405,6 +400,7 @@ function renderOddsInfo() {
 function renderOddsInfoError() {
   const el = document.getElementById("oddsInfo");
   if (!el) return;
+
   el.innerHTML = `<span>Mercados de cuotas indexados: <strong>0</strong></span>`;
 }
 
@@ -425,15 +421,16 @@ function renderMetaInfo() {
 function renderPickCard(pick) {
   if (pick.pick_type === "bet_builder") {
     return `
-      <article class="betslip-card ${pick.tier || "medium"}">
+      <article class="betslip-card ${escapeHtml(pick.tier || "medium")}">
         <div class="betslip-top">
           <div class="betslip-top-left">
             <span class="betslip-label">Crear apuesta</span>
             <h3>${escapeHtml(pick.match || "Partido")}</h3>
+            <div class="builder-title-text">${escapeHtml(pick.pick || "Crear apuesta")}</div>
             <div class="betslip-meta">
               <span>${escapeHtml(pick.league || "--")}</span>
               <span>${escapeHtml(pick.time_local || "--")}</span>
-              <span>Builder</span>
+              <span>Tipster Tips Pro</span>
             </div>
           </div>
 
@@ -447,26 +444,18 @@ function renderPickCard(pick) {
           <div class="bet-selection-box">
             <span class="bet-selection-label">Selecciones</span>
             <div class="builder-legs">
-              ${(pick.selections || []).map(sel => `<div class="builder-leg">${escapeHtml(sel)}</div>`).join("")}
+              ${(pick.selections || []).map(renderBuilderLeg).join("")}
             </div>
           </div>
 
-          <div class="bet-stats-grid">
+          <div class="bet-stats-grid bet-stats-grid-clean">
             <div class="bet-stat">
               <span>Cuota total</span>
               <strong>${pick.odds_estimate ? formatOdds(pick.odds_estimate) : "--"}</strong>
             </div>
             <div class="bet-stat">
-              <span>Confianza</span>
+              <span>Nivel de confianza</span>
               <strong>${formatPercent(pick.confidence)}</strong>
-            </div>
-            <div class="bet-stat">
-              <span>Stake</span>
-              <strong>${pick.stake ?? 0}</strong>
-            </div>
-            <div class="bet-stat">
-              <span>Tipo</span>
-              <strong>Builder</strong>
             </div>
           </div>
 
@@ -476,63 +465,40 @@ function renderPickCard(pick) {
     `;
   }
 
-  const tier = pick.tier || "medium";
-  const edgeText = pick.value_edge === null || pick.value_edge === undefined ? "--" : `${pick.value_edge}%`;
-  const bookmaker = pick.bookmaker || "Modelo";
-
   return `
-    <article class="betslip-card ${tier}">
+    <article class="betslip-card ${escapeHtml(pick.tier || "medium")}">
       <div class="betslip-top">
         <div class="betslip-top-left">
-          <span class="betslip-label">Crear apuesta</span>
+          <span class="betslip-label">Apuesta simple</span>
           <h3>${escapeHtml(pick.match || "Partido")}</h3>
           <div class="betslip-meta">
             <span>${escapeHtml(pick.league || "--")}</span>
             <span>${escapeHtml(pick.time_local || "--")}</span>
-            <span>${escapeHtml(bookmaker)}</span>
+            <span>${escapeHtml(formatPickTypeLabel(pick.pick_type))}</span>
           </div>
         </div>
 
         <div class="betslip-top-right">
-          <span class="tier-badge tier-${escapeHtml(tier)}">${escapeHtml(tier)}</span>
+          <span class="tier-badge tier-${escapeHtml(pick.tier || "medium")}">${escapeHtml(pick.tier || "medium")}</span>
           <span class="status-badge ${statusClass(pick.status)}">${escapeHtml(pick.status || "pending")}</span>
         </div>
       </div>
 
       <div class="betslip-body">
-        <div class="bet-market-row">
-          <span class="bet-market-title">Mercado</span>
-          <strong>${formatPickTypeLabel(pick.pick_type)}</strong>
-        </div>
-
         <div class="bet-selection-box">
           <span class="bet-selection-label">Selección</span>
           <div class="bet-selection-value">${escapeHtml(pick.pick || "--")}</div>
         </div>
 
-        <div class="bet-stats-grid">
+        <div class="bet-stats-grid bet-stats-grid-clean">
           <div class="bet-stat">
             <span>${oddsLabel(pick.odds_source)}</span>
             <strong>${pick.odds_estimate ? formatOdds(pick.odds_estimate) : "--"}</strong>
           </div>
           <div class="bet-stat">
-            <span>Confianza</span>
+            <span>Nivel de confianza</span>
             <strong>${formatPercent(pick.confidence)}</strong>
           </div>
-          <div class="bet-stat">
-            <span>Stake</span>
-            <strong>${pick.stake ?? 0}</strong>
-          </div>
-          <div class="bet-stat">
-            <span>Edge</span>
-            <strong>${edgeText}</strong>
-          </div>
-        </div>
-
-        <div class="bet-extra-flags">
-          <span>Fuente cuota: ${escapeHtml(pick.odds_source || "--")}</span>
-          <span>Combo: ${pick.recommended_for_combo ? "Sí" : "No"}</span>
-          <span>Trackable: ${pick.trackable ? "Sí" : "No"}</span>
         </div>
 
         <p class="betslip-explainer">${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}</p>
@@ -540,14 +506,33 @@ function renderPickCard(pick) {
     </article>
   `;
 }
-function renderMarketCard(market) {
-  const edgeText = market.value_edge === null || market.value_edge === undefined ? "--" : `${market.value_edge}%`;
+function renderBuilderLeg(selection) {
+  const text = String(selection || "");
+  const isCards = text.toLowerCase().includes("tarjeta");
+  const numberMatch = text.match(/([0-9]+(\.[0-9]+)?)/);
+  const cardsNumber = numberMatch ? numberMatch[1] : "?";
 
+  if (isCards) {
+    return `
+      <div class="builder-leg cards-leg">
+        <div class="cards-icon-wrap">
+          <div class="yellow-card-icon"></div>
+          <span class="cards-number">${escapeHtml(cardsNumber)}</span>
+        </div>
+        <div class="cards-text">${escapeHtml(text)}</div>
+      </div>
+    `;
+  }
+
+  return `<div class="builder-leg">${escapeHtml(text)}</div>`;
+}
+
+function renderMarketCard(market) {
   return `
     <article class="bet-market-card tier-${escapeHtml(market.tier || "medium")}">
       <div class="bet-market-card-top">
         <div>
-          <span class="betslip-label">Crear apuesta</span>
+          <span class="betslip-label">Mercado</span>
           <h4>${escapeHtml(formatPickTypeLabel(market.pick_type))}</h4>
         </div>
         <span class="mini-badge">${escapeHtml(market.tier || "--")}</span>
@@ -558,28 +543,15 @@ function renderMarketCard(market) {
         <div class="bet-selection-value">${escapeHtml(market.pick || "--")}</div>
       </div>
 
-      <div class="bet-stats-grid compact">
+      <div class="bet-stats-grid bet-stats-grid-clean">
         <div class="bet-stat">
           <span>${oddsLabel(market.odds_source)}</span>
           <strong>${market.odds_estimate ? formatOdds(market.odds_estimate) : "--"}</strong>
         </div>
         <div class="bet-stat">
-          <span>Confianza</span>
+          <span>Nivel de confianza</span>
           <strong>${formatPercent(market.confidence)}</strong>
         </div>
-        <div class="bet-stat">
-          <span>Stake</span>
-          <strong>${market.stake ?? 0}</strong>
-        </div>
-        <div class="bet-stat">
-          <span>Edge</span>
-          <strong>${edgeText}</strong>
-        </div>
-      </div>
-
-      <div class="bet-extra-flags">
-        <span>Combo: ${market.recommended_for_combo ? "Sí" : "No"}</span>
-        <span>Trackable: ${market.trackable ? "Sí" : "No"}</span>
       </div>
 
       <p class="betslip-explainer">${escapeHtml(market.tipster_explanation || "Sin explicación disponible.")}</p>
@@ -600,7 +572,7 @@ function renderHistoryCard(item) {
       <div class="history-meta">
         <span>${escapeHtml(item.league || "--")}</span>
         <span>${escapeHtml(item.time_local || "--")}</span>
-        <span>${escapeHtml(item.pick_type || "--")}</span>
+        <span>${escapeHtml(formatPickTypeLabel(item.pick_type))}</span>
       </div>
 
       <div class="history-main">
@@ -609,7 +581,7 @@ function renderHistoryCard(item) {
             ? `
               <strong>Crear apuesta</strong>
               <div class="builder-legs" style="margin-top:10px;">
-                ${(item.selections || []).map(sel => `<div class="builder-leg">${escapeHtml(sel)}</div>`).join("")}
+                ${(item.selections || []).map(renderBuilderLeg).join("")}
               </div>
             `
             : `<strong>${escapeHtml(item.pick || "--")}</strong>`
@@ -620,6 +592,7 @@ function renderHistoryCard(item) {
         <span>Estado: ${escapeHtml(item.status || "pending")}</span>
         <span>Marcador: ${escapeHtml(item.score_line || "--")}</span>
         <span>Cuota: ${item.odds_estimate ? formatOdds(item.odds_estimate) : "--"}</span>
+        <span>Confianza: ${formatPercent(item.confidence)}</span>
       </div>
     </article>
   `;
@@ -648,9 +621,11 @@ function formatOdds(value) {
 
 function formatDateTime(value) {
   if (!value) return "--";
+
   try {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
+
     return date.toLocaleString("es-ES", {
       day: "2-digit",
       month: "2-digit",
@@ -687,6 +662,7 @@ function formatPickTypeLabel(pickType) {
     team_score_first_half: "Equipo marcará en 1ª parte",
     team_score_second_half: "Equipo marcará en 2ª parte",
   };
+
   return labels[pickType] || pickType || "--";
 }
 
