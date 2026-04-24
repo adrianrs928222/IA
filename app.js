@@ -447,24 +447,42 @@ function renderPickCard(pick) {
   ${(pick.selections || []).map(renderBuilderLeg).join("")}
 </div>
 
-${renderCardsSummary(pick)}
+function renderCardsSummary(pick) {
+  const cards = pick.cards || {};
+  const home = pick.home_team || "";
+  const away = pick.away_team || "";
 
-          <div class="bet-stats-grid bet-stats-grid-clean">
-            <div class="bet-stat">
-              <span>Cuota total</span>
-              <strong>${pick.odds_estimate ? formatOdds(pick.odds_estimate) : "--"}</strong>
-            </div>
-            <div class="bet-stat">
-              <span>Nivel de confianza</span>
-              <strong>${formatPercent(pick.confidence)}</strong>
-            </div>
+  if (!home || !away) return "";
+
+  const homeCards = cards[home];
+  const awayCards = cards[away];
+
+  if (homeCards === undefined && awayCards === undefined) return "";
+
+  return `
+    <div class="cards-summary-box">
+      <span class="cards-summary-title">Tarjetas estimadas</span>
+
+      <div class="cards-summary-grid">
+        <div class="cards-team-row">
+          <div class="yellow-card-icon"></div>
+          <div>
+            <span class="cards-team-name">${escapeHtml(home)}</span>
+            <strong>${homeCards ?? "--"}</strong>
           </div>
-
-          <p class="betslip-explainer">${escapeHtml(pick.tipster_explanation || "")}</p>
         </div>
-      </article>
-    `;
-  }
+
+        <div class="cards-team-row">
+          <div class="yellow-card-icon"></div>
+          <div>
+            <span class="cards-team-name">${escapeHtml(away)}</span>
+            <strong>${awayCards ?? "--"}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
   return `
     <article class="betslip-card ${escapeHtml(pick.tier || "medium")}">
