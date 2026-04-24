@@ -1038,3 +1038,42 @@ button {
     grid-template-columns: 1fr;
   }
 }
+.cards-leg {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cards-icon-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 64px;
+}
+
+.yellow-card-icon {
+  width: 22px;
+  height: 30px;
+  border-radius: 4px;
+  background: linear-gradient(
+    180deg,
+    #ffe66d,
+    #facc15
+  );
+  box-shadow:
+    0 0 12px rgba(250, 204, 21, 0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.cards-number {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.cards-text {
+  flex: 1;
+  font-weight: 800;
+  color: white;
+  line-height: 1.4;
+}
