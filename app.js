@@ -44,18 +44,22 @@ function bindEvents() {
 
 async function initApp() {
   setStatus("Cargando Tipster Tips Pro...");
+
   await Promise.allSettled([
     loadPicks(false),
     loadHistory(1),
     loadOdds(),
   ]);
+
   setStatus("Modelo actualizado");
 }
 
 async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+    },
   });
 
   if (!res.ok) {
@@ -71,7 +75,10 @@ async function loadPicks(forceRefresh = false) {
     state.refreshing = forceRefresh;
     renderLoadingState();
 
-    const payload = await apiGet(`/api/picks?force_refresh=${forceRefresh ? "true" : "false"}`);
+    const payload = await apiGet(
+      `/api/picks?force_refresh=${forceRefresh ? "true" : "false"}`
+    );
+
     state.payload = payload || {};
 
     if (!Array.isArray(state.payload.match_catalog)) {
@@ -104,9 +111,13 @@ async function loadPicks(forceRefresh = false) {
 
 async function loadHistory(page = 1) {
   try {
-    const payload = await apiGet(`/api/history?page=${page}&page_size=${state.historyPageSize}`);
+    const payload = await apiGet(
+      `/api/history?page=${page}&page_size=${state.historyPageSize}`
+    );
+
     state.history = payload || {};
     state.historyPage = payload?.page || 1;
+
     renderHistory();
   } catch (error) {
     console.error("Error loading history:", error);
@@ -116,7 +127,7 @@ async function loadHistory(page = 1) {
 
 async function loadOdds() {
   try {
-    const payload = await apiGet(`/api/odds`);
+    const payload = await apiGet("/api/odds");
     state.odds = payload || {};
     renderOddsInfo();
   } catch (error) {
@@ -129,6 +140,7 @@ function renderAll() {
   updateTabButtons();
   renderHeaderStats();
   renderComboOfDay();
+  renderPremiumSingle();
   renderMainSections();
   renderMatchCatalog();
   renderMetaInfo();
@@ -140,7 +152,9 @@ function renderLoadingState() {
 
   if (loader) {
     loader.style.display = state.loading || state.refreshing ? "flex" : "none";
-    loader.textContent = state.refreshing ? "Actualizando picks..." : "Cargando picks...";
+    loader.textContent = state.refreshing
+      ? "Actualizando picks..."
+      : "Cargando picks...";
   }
 
   if (refreshBtn) {
@@ -171,7 +185,6 @@ function updateTabButtons() {
     btn.classList.toggle("active", btn.dataset.tab === state.selectedTab);
   });
 }
-
 function renderHeaderStats() {
   const payload = state.payload || {};
   const stats = payload.dashboard_stats || {};
@@ -179,7 +192,7 @@ function renderHeaderStats() {
 
   setText("statHits", stats.hits || "0/0");
   setText("statEffectiveness", formatPercent(stats.effectiveness));
-  setText("statProfit", "0.00u");
+  setText("statProfit", "Pro");
   setText("statPending", String(stats.pending ?? 0));
   setText("statTotalPicks", String(payload.count ?? stats.total_picks ?? 0));
 
@@ -196,13 +209,13 @@ function renderComboOfDay() {
   const combo = state.payload?.combo_of_day || {};
   const picks = Array.isArray(combo.picks) ? combo.picks : [];
 
-  if (!picks.length) {
+  if (!picks.length || picks.length < 3) {
     comboWrap.innerHTML = `
       <div class="panel">
         <div class="panel-head">
           <h2>Combinada del día</h2>
         </div>
-        <p>No hay combinada suficiente hoy. El modelo ha preferido no forzar una combinación.</p>
+        <p>No hay 3 partidos válidos entre hoy y mañana para formar combinada.</p>
       </div>
     `;
     return;
@@ -212,7 +225,7 @@ function renderComboOfDay() {
     <div class="panel combo-panel">
       <div class="panel-head">
         <h2>Combinada del día</h2>
-        <span class="badge">${escapeHtml(String(combo.size || picks.length))} selecciones</span>
+        <span class="badge">3 partidos</span>
       </div>
 
       <div class="combo-summary">
@@ -220,6 +233,7 @@ function renderComboOfDay() {
           <span class="metric-label">Cuota total</span>
           <strong>${combo.estimated_total_odds ? formatOdds(combo.estimated_total_odds) : "--"}</strong>
         </div>
+
         <div class="metric-chip">
           <span class="metric-label">Nivel de confianza</span>
           <strong>${formatPercent(combo.confidence)}</strong>
@@ -232,6 +246,34 @@ function renderComboOfDay() {
     </div>
   `;
 }
+
+function renderPremiumSingle() {
+  const existing = document.getElementById("premiumSingleSection");
+  if (existing) existing.remove();
+
+  const premium = state.payload?.premium_single;
+  const comboSection = document.getElementById("comboOfDay");
+
+  if (!comboSection || !premium) return;
+
+  const section = document.createElement("section");
+  section.id = "premiumSingleSection";
+  section.innerHTML = `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Pick Premium</h2>
+        <span class="badge">Mejor pick individual</span>
+      </div>
+
+      <div class="pick-list">
+        ${renderPickCard(premium)}
+      </div>
+    </div>
+  `;
+
+  comboSection.insertAdjacentElement("afterend", section);
+}
+
 function renderMainSections() {
   const wrap = document.getElementById("mainContent");
   if (!wrap) return;
@@ -246,7 +288,7 @@ function renderMainSections() {
 
   const titleMap = {
     premium: "Premium Picks",
-    strong: "Strong Picks",
+    strong: "Picks fuertes",
     medium: "Picks medios",
     risky: "Picks de riesgo",
   };
@@ -328,7 +370,6 @@ function renderMatchCatalog() {
     });
   });
 }
-
 function renderHistory() {
   const wrap = document.getElementById("historySection");
   if (!wrap) return;
@@ -346,16 +387,22 @@ function renderHistory() {
       ${
         items.length
           ? `
-          <div class="history-list">
-            ${items.map(renderHistoryCard).join("")}
-          </div>
+            <div class="history-list">
+              ${items.map(renderHistoryCard).join("")}
+            </div>
 
-          <div class="pagination">
-            <button id="prevHistoryPage" ${history.page <= 1 ? "disabled" : ""}>Anterior</button>
-            <span>Página ${history.page || 1} / ${history.total_pages || 1}</span>
-            <button id="nextHistoryPage" ${history.page >= history.total_pages ? "disabled" : ""}>Siguiente</button>
-          </div>
-        `
+            <div class="pagination">
+              <button id="prevHistoryPage" ${history.page <= 1 ? "disabled" : ""}>
+                Anterior
+              </button>
+
+              <span>Página ${history.page || 1} / ${history.total_pages || 1}</span>
+
+              <button id="nextHistoryPage" ${history.page >= history.total_pages ? "disabled" : ""}>
+                Siguiente
+              </button>
+            </div>
+          `
           : `<p>No hay historial todavía.</p>`
       }
     </section>
@@ -366,13 +413,17 @@ function renderHistory() {
 
   if (prevBtn) {
     prevBtn.addEventListener("click", () => {
-      if ((history.page || 1) > 1) loadHistory((history.page || 1) - 1);
+      if ((history.page || 1) > 1) {
+        loadHistory((history.page || 1) - 1);
+      }
     });
   }
 
   if (nextBtn) {
     nextBtn.addEventListener("click", () => {
-      if ((history.page || 1) < (history.total_pages || 1)) loadHistory((history.page || 1) + 1);
+      if ((history.page || 1) < (history.total_pages || 1)) {
+        loadHistory((history.page || 1) + 1);
+      }
     });
   }
 }
@@ -394,14 +445,24 @@ function renderOddsInfo() {
   if (!el) return;
 
   const count = state.odds?.count ?? 0;
-  el.innerHTML = `<span>Mercados de cuotas indexados: <strong>${count}</strong></span>`;
+  el.innerHTML = `
+    <span>
+      Mercados de cuotas indexados:
+      <strong>${count}</strong>
+    </span>
+  `;
 }
 
 function renderOddsInfoError() {
   const el = document.getElementById("oddsInfo");
   if (!el) return;
 
-  el.innerHTML = `<span>Mercados de cuotas indexados: <strong>0</strong></span>`;
+  el.innerHTML = `
+    <span>
+      Mercados de cuotas indexados:
+      <strong>0</strong>
+    </span>
+  `;
 }
 
 function renderMetaInfo() {
@@ -409,11 +470,23 @@ function renderMetaInfo() {
   if (!el) return;
 
   const payload = state.payload || {};
+
   el.innerHTML = `
     <div class="meta-grid">
-      <div><span>Generado:</span> <strong>${formatDateTime(payload.generated_at)}</strong></div>
-      <div><span>Lookahead:</span> <strong>${payload.lookahead_hours ?? "--"}h</strong></div>
-      <div><span>Picks:</span> <strong>${payload.count ?? 0}</strong></div>
+      <div>
+        <span>Generado:</span>
+        <strong>${formatDateTime(payload.generated_at)}</strong>
+      </div>
+
+      <div>
+        <span>Lookahead:</span>
+        <strong>${payload.lookahead_hours ?? "--"}h</strong>
+      </div>
+
+      <div>
+        <span>Picks:</span>
+        <strong>${payload.count ?? 0}</strong>
+      </div>
     </div>
   `;
 }
@@ -425,8 +498,13 @@ function renderPickCard(pick) {
         <div class="betslip-top">
           <div class="betslip-top-left">
             <span class="betslip-label">Crear apuesta</span>
+
             <h3>${escapeHtml(pick.match || "Partido")}</h3>
-            <div class="builder-title-text">${escapeHtml(pick.pick || "Crear apuesta")}</div>
+
+            <div class="builder-title-text">
+              ${escapeHtml(pick.pick || "Crear apuesta")}
+            </div>
+
             <div class="betslip-meta">
               <span>${escapeHtml(pick.league || "--")}</span>
               <span>${escapeHtml(pick.time_local || "--")}</span>
@@ -435,8 +513,13 @@ function renderPickCard(pick) {
           </div>
 
           <div class="betslip-top-right">
-            <span class="tier-badge tier-${escapeHtml(pick.tier || "medium")}">${escapeHtml(pick.tier || "medium")}</span>
-            <span class="status-badge ${statusClass(pick.status)}">${escapeHtml(pick.status || "pending")}</span>
+            <span class="tier-badge tier-${escapeHtml(pick.tier || "medium")}">
+              ${escapeHtml(formatTierLabel(pick.tier))}
+            </span>
+
+            <span class="status-badge ${statusClass(pick.status)}">
+              ${escapeHtml(formatStatusLabel(pick.status))}
+            </span>
           </div>
         </div>
 
@@ -456,13 +539,16 @@ function renderPickCard(pick) {
               <span>Cuota total</span>
               <strong>${pick.odds_estimate ? formatOdds(pick.odds_estimate) : "--"}</strong>
             </div>
+
             <div class="bet-stat">
               <span>Nivel de confianza</span>
               <strong>${formatPercent(pick.confidence)}</strong>
             </div>
           </div>
 
-          <p class="betslip-explainer">${escapeHtml(pick.tipster_explanation || "")}</p>
+          <p class="betslip-explainer">
+            ${escapeHtml(pick.tipster_explanation || "")}
+          </p>
         </div>
       </article>
     `;
@@ -473,7 +559,9 @@ function renderPickCard(pick) {
       <div class="betslip-top">
         <div class="betslip-top-left">
           <span class="betslip-label">Apuesta simple</span>
+
           <h3>${escapeHtml(pick.match || "Partido")}</h3>
+
           <div class="betslip-meta">
             <span>${escapeHtml(pick.league || "--")}</span>
             <span>${escapeHtml(pick.time_local || "--")}</span>
@@ -482,15 +570,23 @@ function renderPickCard(pick) {
         </div>
 
         <div class="betslip-top-right">
-          <span class="tier-badge tier-${escapeHtml(pick.tier || "medium")}">${escapeHtml(pick.tier || "medium")}</span>
-          <span class="status-badge ${statusClass(pick.status)}">${escapeHtml(pick.status || "pending")}</span>
+          <span class="tier-badge tier-${escapeHtml(pick.tier || "medium")}">
+            ${escapeHtml(formatTierLabel(pick.tier))}
+          </span>
+
+          <span class="status-badge ${statusClass(pick.status)}">
+            ${escapeHtml(formatStatusLabel(pick.status))}
+          </span>
         </div>
       </div>
 
       <div class="betslip-body">
         <div class="bet-selection-box">
           <span class="bet-selection-label">Selección</span>
-          <div class="bet-selection-value">${escapeHtml(pick.pick || "--")}</div>
+
+          <div class="bet-selection-value">
+            ${escapeHtml(pick.pick || "--")}
+          </div>
         </div>
 
         <div class="bet-stats-grid bet-stats-grid-clean">
@@ -498,17 +594,21 @@ function renderPickCard(pick) {
             <span>${oddsLabel(pick.odds_source)}</span>
             <strong>${pick.odds_estimate ? formatOdds(pick.odds_estimate) : "--"}</strong>
           </div>
+
           <div class="bet-stat">
             <span>Nivel de confianza</span>
             <strong>${formatPercent(pick.confidence)}</strong>
           </div>
         </div>
 
-        <p class="betslip-explainer">${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}</p>
+        <p class="betslip-explainer">
+          ${escapeHtml(pick.tipster_explanation || "Sin explicación disponible.")}
+        </p>
       </div>
     </article>
   `;
 }
+
 function renderBuilderLeg(selection) {
   const text = String(selection || "");
   const isCards = text.toLowerCase().includes("tarjeta");
@@ -522,14 +622,20 @@ function renderBuilderLeg(selection) {
           <div class="yellow-card-icon"></div>
           <span class="cards-number">${escapeHtml(cardsNumber)}</span>
         </div>
-        <div class="cards-text">${escapeHtml(text)}</div>
+
+        <div class="cards-text">
+          ${escapeHtml(text)}
+        </div>
       </div>
     `;
   }
 
-  return `<div class="builder-leg">${escapeHtml(text)}</div>`;
+  return `
+    <div class="builder-leg">
+      ${escapeHtml(text)}
+    </div>
+  `;
 }
-
 function renderCardsSummary(pick) {
   const cards = pick.cards || {};
   const home = pick.home_team || "";
@@ -549,6 +655,7 @@ function renderCardsSummary(pick) {
       <div class="cards-summary-grid">
         <div class="cards-team-row">
           <div class="yellow-card-icon"></div>
+
           <div>
             <span class="cards-team-name">${escapeHtml(home)}</span>
             <strong>${homeCards ?? "--"}</strong>
@@ -557,6 +664,7 @@ function renderCardsSummary(pick) {
 
         <div class="cards-team-row">
           <div class="yellow-card-icon"></div>
+
           <div>
             <span class="cards-team-name">${escapeHtml(away)}</span>
             <strong>${awayCards ?? "--"}</strong>
@@ -575,12 +683,18 @@ function renderMarketCard(market) {
           <span class="betslip-label">Mercado</span>
           <h4>${escapeHtml(formatPickTypeLabel(market.pick_type))}</h4>
         </div>
-        <span class="mini-badge">${escapeHtml(market.tier || "--")}</span>
+
+        <span class="mini-badge">
+          ${escapeHtml(formatTierLabel(market.tier))}
+        </span>
       </div>
 
       <div class="bet-selection-box compact">
         <span class="bet-selection-label">Selección</span>
-        <div class="bet-selection-value">${escapeHtml(market.pick || "--")}</div>
+
+        <div class="bet-selection-value">
+          ${escapeHtml(market.pick || "--")}
+        </div>
       </div>
 
       <div class="bet-stats-grid bet-stats-grid-clean">
@@ -588,13 +702,16 @@ function renderMarketCard(market) {
           <span>${oddsLabel(market.odds_source)}</span>
           <strong>${market.odds_estimate ? formatOdds(market.odds_estimate) : "--"}</strong>
         </div>
+
         <div class="bet-stat">
           <span>Nivel de confianza</span>
           <strong>${formatPercent(market.confidence)}</strong>
         </div>
       </div>
 
-      <p class="betslip-explainer">${escapeHtml(market.tipster_explanation || "Sin explicación disponible.")}</p>
+      <p class="betslip-explainer">
+        ${escapeHtml(market.tipster_explanation || "Sin explicación disponible.")}
+      </p>
     </article>
   `;
 }
@@ -620,9 +737,11 @@ function renderHistoryCard(item) {
           isBuilder
             ? `
               <strong>Crear apuesta</strong>
+
               <div class="builder-legs" style="margin-top:10px;">
                 ${(item.selections || []).map(renderBuilderLeg).join("")}
               </div>
+
               ${renderCardsSummary(item)}
             `
             : `<strong>${escapeHtml(item.pick || "--")}</strong>`
@@ -630,7 +749,7 @@ function renderHistoryCard(item) {
       </div>
 
       <div class="history-footer">
-        <span>Estado: ${escapeHtml(item.status || "pending")}</span>
+        <span>Estado: ${escapeHtml(formatStatusLabel(item.status))}</span>
         <span>Marcador: ${escapeHtml(item.score_line || "--")}</span>
         <span>Cuota: ${item.odds_estimate ? formatOdds(item.odds_estimate) : "--"}</span>
         <span>Confianza: ${formatPercent(item.confidence)}</span>
@@ -645,12 +764,18 @@ function setText(id, value) {
 }
 
 function formatPercent(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "--";
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--";
+  }
+
   return `${Number(value).toFixed(0)}%`;
 }
 
 function formatOdds(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "--";
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "--";
+  }
+
   return Number(value).toFixed(2);
 }
 
@@ -679,6 +804,23 @@ function statusClass(status) {
   return "pending";
 }
 
+function formatStatusLabel(status) {
+  if (status === "won") return "Ganado";
+  if (status === "lost") return "Fallado";
+  return "Pendiente";
+}
+
+function formatTierLabel(tier) {
+  const labels = {
+    premium: "Premium",
+    strong: "Fuerte",
+    medium: "Medio",
+    risky: "Riesgo",
+  };
+
+  return labels[tier] || tier || "--";
+}
+
 function oddsLabel(oddsSource) {
   return oddsSource === "real" ? "Cuota real" : "Cuota estimada";
 }
@@ -691,8 +833,8 @@ function formatPickTypeLabel(pickType) {
     over_2_5: "Más de 2.5 goles",
     under_2_5: "Menos de 2.5 goles",
     under_3_5: "Menos de 3.5 goles",
-    btts_yes: "Ambos marcan",
-    btts_no: "Ambos no marcan",
+    btts_yes: "Ambos marcan: Sí",
+    btts_no: "Ambos marcan: No",
     team_cards: "Tarjetas de equipo",
     team_score_first_half: "Equipo marcará en 1ª parte",
     team_score_second_half: "Equipo marcará en 2ª parte",
