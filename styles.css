@@ -3,22 +3,17 @@
   --bg2:#0b1728;
   --card:#101d31;
   --card2:#14243d;
-
   --line:rgba(255,255,255,.08);
-
   --text:#ffffff;
   --soft:#b8c5db;
   --muted:#7f90ad;
-
   --green:#16c784;
   --yellow:#facc15;
   --red:#ff5d73;
-
   --premium:#00d4ff;
   --strong:#22c55e;
   --medium:#f59e0b;
   --risky:#ef4444;
-
   --shadow:0 10px 40px rgba(0,0,0,.35);
 }
 
@@ -33,7 +28,6 @@ body{
     radial-gradient(circle at top left,#10294d 0%,transparent 35%),
     radial-gradient(circle at top right,#0c2240 0%,transparent 30%),
     linear-gradient(180deg,var(--bg),#030814);
-
   color:var(--text);
   font-family:'Inter',sans-serif;
   min-height:100vh;
@@ -141,6 +135,11 @@ body{
   border:1px solid var(--line);
 }
 
+.btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
 .statusbar{
   display:flex;
   justify-content:space-between;
@@ -198,21 +197,10 @@ body{
   font-weight:900;
 }
 
-.tier-stat.premium{
-  border-color:rgba(0,212,255,.35);
-}
-
-.tier-stat.strong{
-  border-color:rgba(34,197,94,.35);
-}
-
-.tier-stat.medium{
-  border-color:rgba(245,158,11,.35);
-}
-
-.tier-stat.risky{
-  border-color:rgba(239,68,68,.35);
-}
+.tier-stat.premium{border-color:rgba(0,212,255,.35);}
+.tier-stat.strong{border-color:rgba(34,197,94,.35);}
+.tier-stat.medium{border-color:rgba(245,158,11,.35);}
+.tier-stat.risky{border-color:rgba(239,68,68,.35);}
 
 .panel{
   background:linear-gradient(180deg,var(--card),#0e1b2f);
@@ -279,21 +267,10 @@ body{
   background:linear-gradient(180deg,#13233b,#0d182a);
 }
 
-.betslip-card.premium{
-  border-color:rgba(0,212,255,.35);
-}
-
-.betslip-card.strong{
-  border-color:rgba(34,197,94,.35);
-}
-
-.betslip-card.medium{
-  border-color:rgba(245,158,11,.35);
-}
-
-.betslip-card.risky{
-  border-color:rgba(239,68,68,.35);
-}
+.betslip-card.premium{border-color:rgba(0,212,255,.35);}
+.betslip-card.strong{border-color:rgba(34,197,94,.35);}
+.betslip-card.medium{border-color:rgba(245,158,11,.35);}
+.betslip-card.risky{border-color:rgba(239,68,68,.35);}
 
 .betslip-top{
   display:flex;
@@ -308,6 +285,14 @@ body{
   font-weight:900;
   margin-top:10px;
   line-height:1.25;
+}
+
+.builder-title-text{
+  margin-top:10px;
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+  line-height:1.4;
 }
 
 .betslip-meta{
@@ -401,6 +386,10 @@ body{
   padding:18px;
 }
 
+.bet-selection-box.compact{
+  padding:16px;
+}
+
 .bet-selection-label{
   display:block;
   margin-bottom:10px;
@@ -414,14 +403,6 @@ body{
   font-size:19px;
   font-weight:900;
   line-height:1.45;
-}
-
-.builder-title-text{
-  margin-top:10px;
-  color:#fff;
-  font-size:18px;
-  font-weight:900;
-  line-height:1.4;
 }
 
 .builder-legs{
@@ -458,16 +439,20 @@ body{
   border-radius:4px;
   background:linear-gradient(180deg,#ffe66d,#facc15);
   box-shadow:0 0 12px rgba(250,204,21,.45);
+  border:1px solid rgba(255,255,255,.16);
 }
 
 .cards-number{
   font-size:20px;
   font-weight:900;
+  color:#fff;
 }
 
 .cards-text{
   flex:1;
   font-weight:800;
+  color:white;
+  line-height:1.4;
 }
 
 .bet-stats-grid{
@@ -559,6 +544,7 @@ body{
 
 .match-tab.active{
   border-color:rgba(0,212,255,.35);
+  background:rgba(0,212,255,.08);
 }
 
 .match-tab small{
@@ -604,6 +590,22 @@ body{
   border:1px solid rgba(255,255,255,.06);
 }
 
+.bet-market-card.tier-premium{
+  border-color:rgba(0,212,255,.25);
+}
+
+.bet-market-card.tier-strong{
+  border-color:rgba(34,197,94,.25);
+}
+
+.bet-market-card.tier-medium{
+  border-color:rgba(245,158,11,.25);
+}
+
+.bet-market-card.tier-risky{
+  border-color:rgba(239,68,68,.25);
+}
+
 .bet-market-card-top{
   display:flex;
   justify-content:space-between;
@@ -623,50 +625,12 @@ body{
   background:rgba(255,255,255,.08);
   font-size:11px;
   font-weight:800;
+  white-space:nowrap;
 }
 
-.cards-summary-box{
-  margin-top:16px;
-  padding:18px;
-  border-radius:20px;
-  background:rgba(8,20,45,.65);
-  border:1px solid rgba(250,204,21,.16);
-}
-
-.cards-summary-title{
-  display:block;
-  margin-bottom:14px;
-  color:var(--muted);
-  font-size:12px;
-  text-transform:uppercase;
-  font-weight:800;
-}
-
-.cards-summary-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-}
-
-.cards-team-row{
+.history-actions{
   display:flex;
-  align-items:center;
-  gap:12px;
-  padding:14px;
-  border-radius:18px;
-  background:rgba(255,255,255,.04);
-}
-
-.cards-team-name{
-  display:block;
-  color:var(--soft);
-  margin-bottom:4px;
-  font-size:13px;
-}
-
-.cards-team-row strong{
-  font-size:24px;
-  font-weight:900;
+  justify-content:flex-end;
 }
 
 .history-list{
@@ -682,6 +646,18 @@ body{
   border:1px solid rgba(255,255,255,.06);
 }
 
+.history-card.won{
+  border-color:rgba(22,199,132,.22);
+}
+
+.history-card.lost{
+  border-color:rgba(255,93,115,.22);
+}
+
+.history-card.pending{
+  border-color:rgba(255,255,255,.08);
+}
+
 .history-card-top{
   display:flex;
   justify-content:space-between;
@@ -692,6 +668,12 @@ body{
 .history-card h4{
   font-size:20px;
   font-weight:900;
+}
+
+.history-card-top span{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
 }
 
 .history-meta{
@@ -713,6 +695,10 @@ body{
   margin-bottom:14px;
 }
 
+.history-main strong{
+  font-size:17px;
+}
+
 .history-footer{
   display:flex;
   gap:12px;
@@ -721,12 +707,20 @@ body{
   font-size:13px;
 }
 
+.history-footer span{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.05);
+  padding:8px 10px;
+  border-radius:999px;
+}
+
 .pagination{
   display:flex;
   justify-content:center;
   align-items:center;
   gap:14px;
   margin-top:24px;
+  flex-wrap:wrap;
 }
 
 .pagination button{
@@ -736,6 +730,7 @@ body{
   border-radius:14px;
   background:rgba(255,255,255,.06);
   color:white;
+  font-weight:800;
 }
 
 .pagination button:disabled{
@@ -748,7 +743,6 @@ body{
 }
 
 @media (max-width:900px){
-
   .betslip-top{
     flex-direction:column;
   }
@@ -769,20 +763,55 @@ body{
 }
 
 @media (max-width:520px){
+  .app-shell{
+    width:94%;
+    padding-top:20px;
+  }
 
   .brand-block h1{
     font-size:30px;
+  }
+
+  .brand-subtitle{
+    font-size:14px;
+  }
+
+  .topbar-right{
+    min-width:100%;
   }
 
   .stats-grid{
     grid-template-columns:1fr 1fr;
   }
 
+  .stat-card{
+    padding:18px;
+  }
+
+  .stat-card strong{
+    font-size:26px;
+  }
+
+  .panel{
+    padding:20px;
+    border-radius:22px;
+  }
+
+  .panel-head{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
   .bet-stats-grid-clean{
     grid-template-columns:1fr;
   }
 
-  .cards-summary-grid{
-    grid-template-columns:1fr;
+  .match-tab{
+    min-width:190px;
+  }
+
+  .betslip-body,
+  .betslip-top{
+    padding:18px;
   }
 }
