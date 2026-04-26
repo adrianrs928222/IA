@@ -530,8 +530,6 @@ function renderPickCard(pick) {
             <div class="builder-legs">
               ${(pick.selections || []).map(renderBuilderLeg).join("")}
             </div>
-
-            ${renderCardsSummary(pick)}
           </div>
 
           <div class="bet-stats-grid bet-stats-grid-clean">
@@ -636,45 +634,6 @@ function renderBuilderLeg(selection) {
     </div>
   `;
 }
-function renderCardsSummary(pick) {
-  const cards = pick.cards || {};
-  const home = pick.home_team || "";
-  const away = pick.away_team || "";
-
-  if (!home || !away) return "";
-
-  const homeCards = cards[home];
-  const awayCards = cards[away];
-
-  if (homeCards === undefined && awayCards === undefined) return "";
-
-  return `
-    <div class="cards-summary-box">
-      <span class="cards-summary-title">Tarjetas estimadas</span>
-
-      <div class="cards-summary-grid">
-        <div class="cards-team-row">
-          <div class="yellow-card-icon"></div>
-
-          <div>
-            <span class="cards-team-name">${escapeHtml(home)}</span>
-            <strong>${homeCards ?? "--"}</strong>
-          </div>
-        </div>
-
-        <div class="cards-team-row">
-          <div class="yellow-card-icon"></div>
-
-          <div>
-            <span class="cards-team-name">${escapeHtml(away)}</span>
-            <strong>${awayCards ?? "--"}</strong>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
 function renderMarketCard(market) {
   return `
     <article class="bet-market-card tier-${escapeHtml(market.tier || "medium")}">
@@ -741,8 +700,6 @@ function renderHistoryCard(item) {
               <div class="builder-legs" style="margin-top:10px;">
                 ${(item.selections || []).map(renderBuilderLeg).join("")}
               </div>
-
-              ${renderCardsSummary(item)}
             `
             : `<strong>${escapeHtml(item.pick || "--")}</strong>`
         }
@@ -836,6 +793,9 @@ function formatPickTypeLabel(pickType) {
     btts_yes: "Ambos marcan: Sí",
     btts_no: "Ambos marcan: No",
     team_cards: "Tarjetas de equipo",
+    team_cards_1_5: "Tarjetas equipo +1.5",
+    both_teams_card_1_plus: "Ambos equipos 1+ tarjeta",
+    both_teams_card_2_plus: "Ambos equipos 2+ tarjetas",
     team_score_first_half: "Equipo marcará en 1ª parte",
     team_score_second_half: "Equipo marcará en 2ª parte",
   };
