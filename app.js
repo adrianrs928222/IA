@@ -310,6 +310,8 @@ function renderMainSections() {
 }
 
 function renderMatchCatalog() {
+  return;
+
   const wrap = document.getElementById("matchCatalog");
   if (!wrap) return;
 
